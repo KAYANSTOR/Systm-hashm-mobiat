@@ -1,0 +1,8 @@
+{
+  "name": "نظام أفق لإدارة المبيعات والمصانع",
+  "description": "نظام احترافي لإدارة المبيعات، المشتريات، المخازن، حسابات العملاء والموردين، والسندات لمعامل الخياطة والأقمشة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
