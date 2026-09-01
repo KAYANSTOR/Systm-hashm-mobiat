@@ -48,10 +48,10 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
         <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
           <h3 className="font-bold text-lg text-slate-800">معاينة السند</h3>
           <div className="flex gap-2">
-            <button onClick={handleShareWhatsApp} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-semibold transition-colors">
+            <button onClick={handleShareWhatsApp} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-bold transition-colors">
               <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">واتساب</span>
             </button>
-            <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-semibold transition-colors">
+            <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-bold transition-colors">
               <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة / PDF</span>
             </button>
             <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">

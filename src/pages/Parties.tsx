@@ -73,12 +73,12 @@ export default function Parties() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="page-header no-print">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">العملاء والموردين</h2>
-          <p className="text-sm text-slate-500 mt-1">إدارة بيانات وأرصدة العملاء والموردين لمعمل هاشم الأحمدي.</p>
+          <h2 className="page-title">العملاء والموردين</h2>
+          <p className="page-subtitle">إدارة بيانات وأرصدة العملاء والموردين لمعمل هاشم الأحمدي.</p>
         </div>
-        <button onClick={() => openModal()} className="flex items-center gap-2 bg-[#208480] hover:bg-[#1a6b68] text-white px-5 py-2.5 rounded-xl font-semibold transition-colors shadow-sm">
+        <button onClick={() => openModal()} className="btn-primary">
           <Plus className="w-5 h-5" />
           <span>إضافة {activeTab === 'customers' ? 'عميل' : 'مورد'} جديد</span>
         </button>
@@ -88,7 +88,7 @@ export default function Parties() {
         <button 
           onClick={() => setActiveTab('customers')}
           className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'customers' ? 'bg-[#208480] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+            activeTab === 'customers' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
           <UserCheck className="w-5 h-5" />
@@ -97,7 +97,7 @@ export default function Parties() {
         <button 
           onClick={() => setActiveTab('suppliers')}
           className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'suppliers' ? 'bg-[#208480] text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+            activeTab === 'suppliers' ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
           }`}
         >
           <Factory className="w-5 h-5" />
@@ -106,13 +106,13 @@ export default function Parties() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="card-header">
            <div className="relative max-w-md">
             <Search className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="بحث بالاسم أو رقم الهاتف..." 
-              className="w-full pl-4 pr-10 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="input-field pl-4 pr-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -121,8 +121,8 @@ export default function Parties() {
 
         <div className="overflow-x-auto">
           {activeTab === 'customers' ? (
-            <table className="w-full text-[11px] sm:text-xs md:text-sm text-right">
-              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <table className="table-standard">
+              <thead>
                 <tr>
                   <th className="px-2 py-3">اسم العميل</th>
                   <th className="px-2 py-3">رقم الهاتف</th>
@@ -153,8 +153,8 @@ export default function Parties() {
               </tbody>
             </table>
           ) : (
-            <table className="w-full text-[11px] sm:text-xs md:text-sm text-right">
-              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <table className="table-standard">
+              <thead>
                 <tr>
                   <th className="px-2 py-3">اسم المورد</th>
                   <th className="px-2 py-3">الشركة/المعمل</th>
@@ -183,33 +183,33 @@ export default function Parties() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[100] flex items-center justify-center sm:p-4">
-          <div className="bg-white sm:rounded-2xl w-full h-full sm:h-auto sm:max-h-[90vh] max-w-md overflow-hidden shadow-xl flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
               <h3 className="font-bold text-lg text-slate-800">
                 {editingId ? 'تعديل بيانات' : 'إضافة'} {activeTab === 'customers' ? 'عميل' : 'مورد'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="modal-body space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">الاسم</label>
-                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                <label className="label">الاسم</label>
+                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">رقم الهاتف</label>
-                <input required type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                <label className="label">رقم الهاتف</label>
+                <input required type="text" value={phone} onChange={e => setPhone(e.target.value)} className="input-field" />
               </div>
               
               {activeTab === 'customers' && (
                 <>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">العنوان</label>
-                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                    <label className="label">العنوان</label>
+                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} className="input-field" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">النوع</label>
-                    <select value={type} onChange={e => setType(e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    <label className="label">النوع</label>
+                    <select value={type} onChange={e => setType(e.target.value as any)} className="input-field">
                       <option value="retail">مفرد</option>
                       <option value="wholesale">جملة</option>
                     </select>
@@ -219,19 +219,19 @@ export default function Parties() {
 
               {activeTab === 'suppliers' && (
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">الشركة/المعمل</label>
-                  <input type="text" value={company} onChange={e => setCompany(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                  <label className="label">الشركة/المعمل</label>
+                  <input type="text" value={company} onChange={e => setCompany(e.target.value)} className="input-field" />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">الرصيد الافتتاحي (ريال يمني)</label>
-                <input type="number" step="0.01" value={balance} onChange={e => setBalance(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                <label className="label">الرصيد الافتتاحي (ريال يمني)</label>
+                <input type="number" step="0.01" value={balance} onChange={e => setBalance(e.target.value)} className="input-field" />
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl">إلغاء</button>
-                <button type="submit" className="px-4 py-2 bg-[#208480] hover:bg-[#1a6b68] text-white font-medium rounded-xl">حفظ</button>
+              <div className="modal-footer">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-outline">إلغاء</button>
+                <button type="submit" className="btn-primary">حفظ</button>
               </div>
             </form>
           </div>

@@ -1,1 +1,9 @@
-{ "compilerOptions": { "skipLibCheck": true }, "exclude": ["dist", "node_modules"] }
+{ 
+  "compilerOptions": { 
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "node",
+    "esModuleInterop": true
+  }, 
+  "exclude": ["dist", "node_modules"] 
+}

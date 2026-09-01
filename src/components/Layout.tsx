@@ -5,9 +5,7 @@ import {
   Package,
   Users,
   FileText,
-  CreditCard,
-  LogOut,
-  Settings,
+  CreditCard, Settings,
   HelpCircle,
   Plus,
   Download,
@@ -27,13 +25,36 @@ interface LayoutProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   onSignOut: () => void;
-  user: User;
+  user: User | null;
 }
 
 export default function Layout({ children, activeTab, setActiveTab, onSignOut, user }: LayoutProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [tabHistory, setTabHistory] = useState<TabType[]>(['dashboard']);
+
+  useEffect(() => {
+    setTabHistory(prev => {
+      if (prev[prev.length - 1] !== activeTab) {
+        return [...prev, activeTab];
+      }
+      return prev;
+    });
+  }, [activeTab]);
+
+  const handleBack = () => {
+    setTabHistory(prev => {
+      if (prev.length > 1) {
+        const newHistory = [...prev];
+        newHistory.pop();
+        setActiveTab(newHistory[newHistory.length - 1]);
+        return newHistory;
+      }
+      setActiveTab('dashboard');
+      return prev;
+    });
+  };
   const { inventory } = useStore();
 
   const lowStockItems = inventory.filter(item => item.quantity <= (item.limit || 0));
@@ -69,15 +90,15 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#f4f6f9] overflow-hidden font-tajawal" dir="rtl">
+    <div className="flex flex-col h-screen overflow-hidden " dir="rtl">
       {/* Top Header */}
       <header className="h-20 px-5 flex items-center justify-between no-print z-10 shrink-0">
         <div className="flex items-center gap-3">
           {activeTab !== 'dashboard' && (
             <button 
-              onClick={() => setActiveTab('dashboard')} 
+              onClick={handleBack} 
               className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm text-slate-700 hover:bg-slate-50 transition-colors"
-              title="رجوع للرئيسية"
+              title="رجوع"
             >
               <ArrowRight className="w-5 h-5" />
             </button>
@@ -120,11 +141,9 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
               </>
             )}
           </div>
-          <button onClick={onSignOut} className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition-colors" title="تسجيل الخروج">
-            <LogOut className="w-5 h-5 ml-0.5" />
-          </button>
+          
           {deferredPrompt && (
-            <button onClick={handleInstallClick} className="w-10 h-10 bg-[#208480] rounded-2xl flex items-center justify-center shadow-lg shadow-[#208480]/30 text-white hover:bg-[#1a6b68] transition-colors" title="تثبيت التطبيق">
+            <button onClick={handleInstallClick} className="w-10 h-10 bg-brand-500 rounded-2xl flex items-center justify-center shadow-lg shadow-brand-500/30 text-white hover:bg-brand-600 transition-colors" title="تثبيت التطبيق">
               <Download className="w-5 h-5" />
             </button>
           )}
@@ -142,7 +161,7 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto p-4 pb-28">
-        <div className="max-w-md mx-auto h-full relative">
+        <div className="max-w-5xl mx-auto h-full relative">
           {children}
 
           {/* Quick Actions Menu */}
@@ -190,7 +209,7 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
               "fixed bottom-24 left-6 w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all z-40 text-white no-print",
               isFabOpen 
                 ? "bg-slate-700 hover:bg-slate-800 shadow-slate-900/30 rotate-45" 
-                : "bg-[#bd5e8e] hover:bg-[#a64e7a] shadow-[#bd5e8e]/40"
+                : "bg-accent-500 hover:bg-accent-600 shadow-accent-500/40"
             )}
             onClick={() => setIsFabOpen(!isFabOpen)}
           >
@@ -201,7 +220,7 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 inset-x-0 bg-white z-50 no-print rounded-t-3xl shadow-[0_-4px_25px_rgba(0,0,0,0.03)] border-t border-slate-100">
-        <div className="flex justify-around items-center h-20 max-w-md mx-auto px-2">
+        <div className="flex justify-around items-center h-20 max-w-5xl mx-auto px-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

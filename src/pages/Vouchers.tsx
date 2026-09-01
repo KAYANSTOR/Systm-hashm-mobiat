@@ -4,7 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { Plus, CheckCircle2, Search, ArrowDownRight, ArrowUpRight, Clock, X, Trash2, Printer } from 'lucide-react';
 import { Voucher } from '../types';
-import VoucherPrintTemplate from '../components/VoucherPrintTemplate';
+import ReceiptPrint, { ReceiptData } from '../components/ReceiptPrint';
 
 export default function Vouchers() {
   const { vouchers, customers, suppliers, addVoucher, deleteVoucher } = useStore();
@@ -61,17 +61,17 @@ export default function Vouchers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="page-header no-print">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">السندات والمالية</h2>
-          <p className="text-sm text-slate-500 mt-1">إدارة سندات القبض والدفع والآجل.</p>
+          <h2 className="page-title">السندات والمالية</h2>
+          <p className="page-subtitle">إدارة سندات القبض والدفع والآجل.</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => openModal('receipt')} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-semibold transition-colors shadow-sm">
+          <button onClick={() => openModal('receipt')} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold transition-colors shadow-sm">
             <ArrowDownRight className="w-5 h-5" />
             <span>سند قبض</span>
           </button>
-          <button onClick={() => openModal('payment')} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl font-semibold transition-colors shadow-sm">
+          <button onClick={() => openModal('payment')} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl font-bold transition-colors shadow-sm">
             <ArrowUpRight className="w-5 h-5" />
             <span>سند صرف</span>
           </button>
@@ -86,21 +86,21 @@ export default function Vouchers() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="card-header">
            <div className="relative max-w-md">
             <Search className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
               placeholder="بحث برقم السند أو الوصف..." 
-              className="w-full pl-4 pr-10 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+              className="input-field pl-4 pr-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px] sm:text-xs md:text-sm text-right">
-            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+          <table className="table-standard">
+            <thead>
               <tr>
                 <th className="px-2 py-3">رقم السند</th>
                 <th className="px-2 py-3">التاريخ</th>
@@ -174,36 +174,49 @@ export default function Vouchers() {
       </div>
 
       {printingVoucher && (
-        <VoucherPrintTemplate 
-          voucher={printingVoucher.voucher} 
-          partyName={printingVoucher.partyName} 
+        <ReceiptPrint 
+          data={{
+            receiptNumber: printingVoucher.voucher.voucherNumber,
+            date: formatDate(printingVoucher.voucher.date),
+            receivedFrom: printingVoucher.partyName,
+            amount: formatCurrency(printingVoucher.voucher.amount),
+            amountInWords: "",
+            transferNumber: printingVoucher.voucher.paymentMethod === 'bank' ? 'حوالة بنكية' : printingVoucher.voucher.paymentMethod === 'check' ? 'شيك' : 'نقداً',
+            network: printingVoucher.voucher.paymentMethod !== 'cash' ? 'تحويل' : 'صندوق المعمل',
+            transferDate: formatDate(printingVoucher.voucher.date),
+            paymentFor: printingVoucher.voucher.description,
+            remaining: "",
+            receiver: "",
+            cashier: "",
+            type: printingVoucher.voucher.type
+          }}
           onClose={() => setPrintingVoucher(null)} 
         />
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-[100] flex items-center justify-center sm:p-4">
-          <div className="bg-white sm:rounded-2xl w-full h-full sm:h-auto sm:max-h-[90vh] max-w-md overflow-hidden shadow-xl flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50/50 shrink-0">
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
               <h3 className="font-bold text-lg text-slate-800">
                 إضافة سند {type === 'receipt' ? 'قبض' : 'صرف'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4 flex-1 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="modal-body space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">رقم السند</label>
+                  <label className="label">رقم السند</label>
                   <input required type="text" value={voucherNumber} onChange={e => setVoucherNumber(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-slate-50" readOnly />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">التاريخ</label>
-                  <input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                  <label className="label">التاريخ</label>
+                  <input required type="date" value={date} onChange={e => setDate(e.target.value)} className="input-field" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">جهة {type === 'receipt' ? 'القبض (استلام من)' : 'الصرف (دفع إلى)'}</label>
+                <label className="label">جهة {type === 'receipt' ? 'القبض (استلام من)' : 'الصرف (دفع إلى)'}</label>
                 <div className="flex gap-2 mb-2">
                    <select value={partyType} onChange={e => setPartyType(e.target.value as any)} className="w-1/3 px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20">
                     <option value="customer">عميل</option>
@@ -230,12 +243,12 @@ export default function Vouchers() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">المبلغ (ريال يمني)</label>
-                  <input required type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20" />
+                  <label className="label">المبلغ (ريال يمني)</label>
+                  <input required type="number" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">طريقة الدفع</label>
-                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20">
+                  <label className="label">طريقة الدفع</label>
+                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)} className="input-field">
                     <option value="cash">نقدي</option>
                     <option value="bank">تحويل بنكي</option>
                     <option value="check">شيك</option>
@@ -244,13 +257,13 @@ export default function Vouchers() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">البيان / التفاصيل</label>
-                <textarea rows={3} required value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500/20"></textarea>
+                <label className="label">البيان / التفاصيل</label>
+                <textarea rows={3} required value={description} onChange={e => setDescription(e.target.value)} className="input-field"></textarea>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl">إلغاء</button>
-                <button type="submit" className="px-4 py-2 bg-[#208480] hover:bg-[#1a6b68] text-white font-medium rounded-xl">حفظ السند</button>
+              <div className="modal-footer">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-outline">إلغاء</button>
+                <button type="submit" className="btn-primary">حفظ السند</button>
               </div>
             </form>
           </div>

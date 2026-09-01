@@ -62,6 +62,7 @@ export interface Invoice {
   paidAmount: number;
   remainingAmount: number;
   status: 'paid' | 'partial' | 'unpaid';
+  isApproved?: boolean;
   createdBy: string;
   notes?: string;
 }

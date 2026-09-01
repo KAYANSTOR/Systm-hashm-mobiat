@@ -66,7 +66,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
       {/* Hero Card */}
       <div 
         onClick={() => setActiveTab('parties')}
-        className="bg-gradient-to-l from-[#bc5f8f] to-[#208480] rounded-[24px] p-6 text-white shadow-xl shadow-teal-900/10 relative overflow-hidden mb-2 cursor-pointer hover:opacity-95 transition-opacity active:scale-[0.98]"
+        className="bg-gradient-to-l from-accent-500 to-brand-500 rounded-3xl p-6 text-white shadow-xl shadow-teal-900/10 relative overflow-hidden mb-2 cursor-pointer hover:opacity-95 transition-opacity active:scale-[0.98]"
       >
         <div className="flex items-center gap-2 mb-2 justify-end opacity-90">
           <span className="text-sm font-bold">إجمالي ديون العملاء (المعلق)</span>
@@ -103,7 +103,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
       </div>
 
       {/* Secondary Cards Row */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {/* Month's Sales */}
         <div 
           onClick={() => setActiveTab('reports')}
@@ -152,7 +152,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
       </div>
 
       {/* Action Grid (2x2) */}
-      <div className="grid grid-cols-2 gap-4 mt-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
         <ActionCard onClick={() => setActiveTab('sales')} icon={<Calculator className="w-6 h-6 text-teal-600" />} title="فاتورة مبيعات" />
         <ActionCard onClick={() => setActiveTab('vouchers')} icon={<PlusCircle className="w-6 h-6 text-teal-600" />} title="سند قبض" />
         <ActionCard onClick={() => setActiveTab('parties')} icon={<UserPlus className="w-6 h-6 text-teal-600" />} title="إضافة عميل" />
@@ -169,10 +169,10 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
           </div>
         </div>
 
-        <div className="bg-white rounded-[24px] p-8 border border-slate-100/60 shadow-sm text-center">
+        <div className="bg-white rounded-3xl p-8 border border-slate-100/60 shadow-sm text-center">
           {invoices.length > 0 ? (
             <div className="overflow-x-auto -mx-8 px-8">
-              <table className="w-full text-[11px] sm:text-xs md:text-sm text-right">
+              <table className="table-standard">
                 <tbody className="divide-y divide-slate-50">
                   {invoices.slice(0, 3).map((inv) => (
                     <tr key={inv.id} className="transition-colors">

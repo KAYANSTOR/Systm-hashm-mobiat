@@ -10,25 +10,26 @@ interface StoreContextType {
   invoices: Invoice[];
   vouchers: Voucher[];
   
-  addCustomer: (c: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateCustomer: (id: string, data: Partial<Customer>) => Promise<void>;
-  deleteCustomer: (id: string) => Promise<void>;
+  addCustomer: (c: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string | void>;
+  updateCustomer: (id: string, data: Partial<Customer>) => Promise<string | void>;
+  deleteCustomer: (id: string) => Promise<string | void>;
 
-  addSupplier: (s: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateSupplier: (id: string, data: Partial<Supplier>) => Promise<void>;
-  deleteSupplier: (id: string) => Promise<void>;
+  addSupplier: (s: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string | void>;
+  updateSupplier: (id: string, data: Partial<Supplier>) => Promise<string | void>;
+  deleteSupplier: (id: string) => Promise<string | void>;
 
-  addInventoryItem: (i: Omit<InventoryItem, 'id' | 'lastUpdated'>) => Promise<void>;
-  updateInventoryItem: (id: string, data: Partial<InventoryItem>) => Promise<void>;
-  deleteInventoryItem: (id: string) => Promise<void>;
+  addInventoryItem: (i: Omit<InventoryItem, 'id' | 'lastUpdated'>) => Promise<string | void>;
+  updateInventoryItem: (id: string, data: Partial<InventoryItem>) => Promise<string | void>;
+  deleteInventoryItem: (id: string) => Promise<string | void>;
 
-  addInvoice: (i: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateInvoice: (id: string, data: Partial<Invoice>) => Promise<void>;
-  deleteInvoice: (id: string) => Promise<void>;
+  addInvoice: (i: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  updateInvoice: (id: string, data: Partial<Invoice>) => Promise<string | void>;
+  deleteInvoice: (id: string) => Promise<string | void>;
+  approveInvoice: (id: string) => Promise<string | void>;
 
-  addVoucher: (v: Omit<Voucher, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateVoucher: (id: string, data: Partial<Voucher>) => Promise<void>;
-  deleteVoucher: (id: string) => Promise<void>;
+  addVoucher: (v: Omit<Voucher, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  updateVoucher: (id: string, data: Partial<Voucher>) => Promise<string | void>;
+  deleteVoucher: (id: string) => Promise<string | void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -169,21 +170,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updatedAt: serverTimestamp()
       });
 
-      if (i.remainingAmount > 0) {
-        if (i.type === 'sale') {
-          const partyRef = doc(db, 'customers', i.partyId);
-          batch.update(partyRef, { balance: increment(i.remainingAmount) });
-        } else {
-          const partyRef = doc(db, 'suppliers', i.partyId);
-          batch.update(partyRef, { balance: increment(i.remainingAmount) });
+      if (i.isApproved) {
+        if (i.remainingAmount > 0) {
+          if (i.type === 'sale') {
+            const partyRef = doc(db, 'customers', i.partyId);
+            batch.update(partyRef, { balance: increment(i.remainingAmount) });
+          } else {
+            const partyRef = doc(db, 'suppliers', i.partyId);
+            batch.update(partyRef, { balance: increment(i.remainingAmount) });
+          }
         }
-      }
 
-      i.items.forEach(item => {
-        const invRef = doc(db, 'inventory', item.inventoryItemId);
-        const qtyChange = i.type === 'sale' ? -item.quantity : item.quantity;
-        batch.update(invRef, { quantity: increment(qtyChange) });
-      });
+        i.items.forEach(item => {
+          const invRef = doc(db, 'inventory', item.inventoryItemId);
+          const qtyChange = i.type === 'sale' ? -item.quantity : item.quantity;
+          batch.update(invRef, { quantity: increment(qtyChange) });
+        });
+      }
 
       await batch.commit();
     } catch (e) {
@@ -193,12 +196,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const updateInvoice = async (id: string, data: Partial<Invoice>) => {
     try {
-      // NOTE: Complex updates modifying totals or items requires reverting old and applying new.
-      // For simplicity in UI, editing should be limited or we use a cloud function.
-      await updateDoc(doc(db, 'invoices', id), {
-        ...data,
-        updatedAt: serverTimestamp()
-      });
+      const docSnap = await getDoc(doc(db, 'invoices', id));
+      if (!docSnap.exists()) return;
+      const oldInvoice = docSnap.data() as Invoice;
+
+      const batch = writeBatch(db);
+      const invoiceRef = doc(db, 'invoices', id);
+
+      // Revert old invoice if it was approved
+      if (oldInvoice.isApproved) {
+        if (oldInvoice.remainingAmount > 0) {
+          const partyRef = doc(db, oldInvoice.type === 'sale' ? 'customers' : 'suppliers', oldInvoice.partyId);
+          batch.update(partyRef, { balance: increment(-oldInvoice.remainingAmount) });
+        }
+        oldInvoice.items.forEach(item => {
+          const invRef = doc(db, 'inventory', item.inventoryItemId);
+          const qtyChange = oldInvoice.type === 'sale' ? item.quantity : -item.quantity;
+          batch.update(invRef, { quantity: increment(qtyChange) });
+        });
+      }
+
+      batch.update(invoiceRef, { ...data, updatedAt: serverTimestamp() });
+
+      // Apply new invoice if it is approved now
+      const isNowApproved = data.isApproved !== undefined ? data.isApproved : oldInvoice.isApproved;
+      
+      if (isNowApproved) {
+        const newInvoice = { ...oldInvoice, ...data } as Invoice;
+        
+        if (newInvoice.remainingAmount > 0) {
+          const partyRef = doc(db, newInvoice.type === 'sale' ? 'customers' : 'suppliers', newInvoice.partyId);
+          batch.update(partyRef, { balance: increment(newInvoice.remainingAmount) });
+        }
+        newInvoice.items.forEach(item => {
+          const invRef = doc(db, 'inventory', item.inventoryItemId);
+          const qtyChange = newInvoice.type === 'sale' ? -item.quantity : item.quantity;
+          batch.update(invRef, { quantity: increment(qtyChange) });
+        });
+      }
+
+      await batch.commit();
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, 'invoices');
     }
@@ -214,25 +251,61 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const invoiceRef = doc(db, 'invoices', id);
       batch.delete(invoiceRef);
 
+      if (invoice.isApproved) {
+        if (invoice.remainingAmount > 0) {
+          if (invoice.type === 'sale') {
+            const partyRef = doc(db, 'customers', invoice.partyId);
+            batch.update(partyRef, { balance: increment(-invoice.remainingAmount) });
+          } else {
+            const partyRef = doc(db, 'suppliers', invoice.partyId);
+            batch.update(partyRef, { balance: increment(-invoice.remainingAmount) });
+          }
+        }
+
+        invoice.items.forEach(item => {
+          const invRef = doc(db, 'inventory', item.inventoryItemId);
+          const qtyChange = invoice.type === 'sale' ? item.quantity : -item.quantity;
+          batch.update(invRef, { quantity: increment(qtyChange) });
+        });
+      }
+
+      await batch.commit();
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, 'invoices');
+    }
+  };
+
+  const approveInvoice = async (id: string) => {
+    try {
+      const docSnap = await getDoc(doc(db, 'invoices', id));
+      if (!docSnap.exists()) return;
+      const invoice = docSnap.data() as Invoice;
+
+      if (invoice.isApproved) return; // Already approved
+
+      const batch = writeBatch(db);
+      const invoiceRef = doc(db, 'invoices', id);
+      batch.update(invoiceRef, { isApproved: true, updatedAt: serverTimestamp() });
+
       if (invoice.remainingAmount > 0) {
         if (invoice.type === 'sale') {
           const partyRef = doc(db, 'customers', invoice.partyId);
-          batch.update(partyRef, { balance: increment(-invoice.remainingAmount) });
+          batch.update(partyRef, { balance: increment(invoice.remainingAmount) });
         } else {
           const partyRef = doc(db, 'suppliers', invoice.partyId);
-          batch.update(partyRef, { balance: increment(-invoice.remainingAmount) });
+          batch.update(partyRef, { balance: increment(invoice.remainingAmount) });
         }
       }
 
       invoice.items.forEach(item => {
         const invRef = doc(db, 'inventory', item.inventoryItemId);
-        const qtyChange = invoice.type === 'sale' ? item.quantity : -item.quantity;
+        const qtyChange = invoice.type === 'sale' ? -item.quantity : item.quantity;
         batch.update(invRef, { quantity: increment(qtyChange) });
       });
 
       await batch.commit();
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, 'invoices');
+      handleFirestoreError(e, OperationType.UPDATE, 'invoices');
     }
   };
 
@@ -310,7 +383,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addCustomer, updateCustomer, deleteCustomer,
       addSupplier, updateSupplier, deleteSupplier,
       addInventoryItem, updateInventoryItem, deleteInventoryItem,
-      addInvoice, updateInvoice, deleteInvoice,
+      addInvoice, updateInvoice, deleteInvoice, approveInvoice,
       addVoucher, updateVoucher, deleteVoucher
     }}>
       {children}
