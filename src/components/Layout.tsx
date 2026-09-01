@@ -1,19 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  LayoutDashboard,
-  ShoppingCart,
-  Package,
-  Users,
-  FileText,
-  CreditCard, Settings,
-  HelpCircle,
-  Plus,
-  Download,
-  Calculator,
-  UserPlus,
-  Bell,
-  ArrowRight
-} from 'lucide-react';
+import { Home, ShoppingBag, Boxes, Users, PieChart, Receipt, Plus, Download, Calculator, UserPlus, Bell, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from 'firebase/auth';
 import { useStore } from '../context/StoreContext';
@@ -75,12 +61,12 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
   };
 
   const navItems = [
-    { id: 'dashboard', label: 'الرئيسية', icon: LayoutDashboard },
-    { id: 'reports', label: 'التقارير', icon: FileText },
-    { id: 'vouchers', label: 'السندات', icon: CreditCard },
+    { id: 'dashboard', label: 'الرئيسية', icon: Home },
+    { id: 'reports', label: 'التقارير', icon: PieChart },
+    { id: 'vouchers', label: 'السندات', icon: Receipt },
     { id: 'parties', label: 'العملاء', icon: Users },
-    { id: 'inventory', label: 'المخزن', icon: Package },
-    { id: 'sales', label: 'المبيعات', icon: ShoppingCart },
+    { id: 'inventory', label: 'المخزن', icon: Boxes },
+    { id: 'sales', label: 'المبيعات', icon: ShoppingBag },
   ];
 
   const handleQuickAction = (tab: TabType) => {
@@ -186,7 +172,7 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
                 >
                   <span className="font-bold text-sm">سند جديد</span>
                   <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl">
-                    <CreditCard className="w-5 h-5" />
+                    <Receipt className="w-5 h-5" />
                   </div>
                 </button>
                 <button 

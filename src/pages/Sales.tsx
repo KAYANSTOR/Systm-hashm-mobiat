@@ -170,8 +170,8 @@ export default function Sales() {
               />
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="table-standard">
+          <div className="table-container">
+<table className="table-standard">
               <thead>
                 <tr>
                   <th className="px-2 py-3">رقم الفاتورة</th>
@@ -193,9 +193,9 @@ export default function Sales() {
 
                   return (
                     <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-2 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
-                      <td className="px-2 py-3 text-slate-600">{formatDate(inv.date)}</td>
-                      <td className="px-2 py-3">
+                      <td data-label="رقم الفاتورة" className="px-2 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
+                      <td data-label="التاريخ" className="px-2 py-3 text-slate-600">{formatDate(inv.date)}</td>
+                      <td data-label="النوع" className="px-2 py-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
                           inv.type === 'sale' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
                         }`}>
@@ -203,11 +203,11 @@ export default function Sales() {
                           {inv.type === 'sale' ? 'مبيعات' : 'مشتريات'}
                         </span>
                       </td>
-                      <td className="px-2 py-3 font-bold text-slate-800">{partyName || '-'}</td>
-                      <td className="px-2 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(inv.total)}</td>
-                      <td className="px-2 py-3 text-emerald-600 font-bold" dir="ltr">{formatCurrency(inv.paidAmount)}</td>
-                      <td className="px-2 py-3 text-rose-600 font-bold" dir="ltr">{formatCurrency(inv.remainingAmount)}</td>
-                      <td className="px-2 py-3">
+                      <td data-label="الطرف" className="px-2 py-3 font-bold text-slate-800">{partyName || '<غير معروف>'}</td>
+                      <td data-label="الإجمالي" className="px-2 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(inv.total)}</td>
+                      <td data-label="المدفوع" className="px-2 py-3 text-emerald-600 font-bold" dir="ltr">{formatCurrency(inv.paidAmount)}</td>
+                      <td data-label="المتبقي" className="px-2 py-3 text-rose-600 font-bold" dir="ltr">{formatCurrency(inv.remainingAmount)}</td>
+                      <td data-label="الحالة" className="px-2 py-3">
                         <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${
                            inv.status === 'paid' ? 'bg-emerald-100 text-emerald-800' :
                            inv.status === 'partial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
@@ -220,7 +220,7 @@ export default function Sales() {
                           </span>
                         )}
                       </td>
-                      <td className="px-2 py-3 text-center">
+                      <td data-label="إجراءات" className="px-2 py-3 text-center">
                         {!inv.isApproved && (
                           <>
                             <button 
@@ -263,7 +263,7 @@ export default function Sales() {
                 })}
                 {filteredInvoices.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500">لا توجد فواتير مطابقة للبحث.</td>
+                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500 sm:!justify-center !justify-center">لا توجد فواتير مطابقة للبحث.</td>
                   </tr>
                 )}
               </tbody>
@@ -330,8 +330,8 @@ export default function Sales() {
                   </div>
                   <button type="button" onClick={handleAddItem} disabled={!selectedItemId} className="px-6 py-2 bg-brand-500/10 text-brand-500 hover:bg-brand-500/20 font-bold rounded-[12px] disabled:opacity-50 transition-colors">إضافة</button>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="table-standard">
+                <div className="table-container">
+<table className="table-standard">
                     <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
                       <tr>
                         <th className="px-4 py-3 font-bold">المادة</th>
@@ -344,11 +344,11 @@ export default function Sales() {
                     <tbody className="divide-y divide-slate-100">
                       {items.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
-                          <td className="px-4 py-3 text-center">{item.quantity}</td>
-                          <td className="px-4 py-3 text-slate-600" dir="ltr">{formatCurrency(item.unitPrice)}</td>
-                          <td className="px-4 py-3 font-bold text-brand-500" dir="ltr">{formatCurrency(item.total)}</td>
-                          <td className="px-4 py-3">
+                          <td data-label="المادة" className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
+                          <td data-label="الكمية" className="px-4 py-3 text-center">{item.quantity}</td>
+                          <td data-label="السعر" className="px-4 py-3 text-slate-600" dir="ltr">{formatCurrency(item.unitPrice)}</td>
+                          <td data-label="الإجمالي" className="px-4 py-3 font-bold text-brand-500" dir="ltr">{formatCurrency(item.total)}</td>
+                          <td data-label="إجراءات" className="px-4 py-3">
                             <button type="button" onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4"/></button>
                           </td>
                         </tr>

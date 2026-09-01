@@ -1,18 +1,7 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
-import {
-  TrendingUp,
-  Package,
-  Users,
-  CheckCircle2,
-  ChevronLeft,
-  Calculator,
-  PlusCircle,
-  UserPlus,
-  PackagePlus,
-  Receipt
-} from 'lucide-react';
+import { TrendingUp, Package, Users, CheckCircle2, ChevronLeft, ShoppingBag, Receipt, UserPlus, Box } from 'lucide-react';
 
 export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) => void }) {
   const { customers, inventory, invoices } = useStore();
@@ -153,10 +142,10 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
 
       {/* Action Grid (2x2) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-        <ActionCard onClick={() => setActiveTab('sales')} icon={<Calculator className="w-6 h-6 text-teal-600" />} title="فاتورة مبيعات" />
-        <ActionCard onClick={() => setActiveTab('vouchers')} icon={<PlusCircle className="w-6 h-6 text-teal-600" />} title="سند قبض" />
+        <ActionCard onClick={() => setActiveTab('sales')} icon={<ShoppingBag className="w-6 h-6 text-teal-600" />} title="فاتورة مبيعات" />
+        <ActionCard onClick={() => setActiveTab('vouchers')} icon={<Receipt className="w-6 h-6 text-teal-600" />} title="سند قبض" />
         <ActionCard onClick={() => setActiveTab('parties')} icon={<UserPlus className="w-6 h-6 text-teal-600" />} title="إضافة عميل" />
-        <ActionCard onClick={() => setActiveTab('inventory')} icon={<PackagePlus className="w-6 h-6 text-teal-600" />} title="إضافة صنف" />
+        <ActionCard onClick={() => setActiveTab('inventory')} icon={<Box className="w-6 h-6 text-teal-600" />} title="إضافة صنف" />
       </div>
 
       {/* Recent Transactions Preview */}
@@ -171,14 +160,14 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
 
         <div className="bg-white rounded-3xl p-8 border border-slate-100/60 shadow-sm text-center">
           {invoices.length > 0 ? (
-            <div className="overflow-x-auto -mx-8 px-8">
+            <div>
               <table className="table-standard">
                 <tbody className="divide-y divide-slate-50">
                   {invoices.slice(0, 3).map((inv) => (
                     <tr key={inv.id} className="transition-colors">
-                      <td className="py-4 text-slate-500 text-xs">{formatDate(inv.date)}</td>
-                      <td className="py-4 font-bold text-slate-800 text-left">{formatCurrency(inv.total)}</td>
-                      <td className="py-4 text-right">
+                      <td data-label="التاريخ" className="py-4 text-slate-500 text-xs">{formatDate(inv.date)}</td>
+                      <td data-label="المبلغ" className="py-4 font-bold text-slate-800 text-left">{formatCurrency(inv.total)}</td>
+                      <td data-label="البيان" className="py-4 text-right">
                         <div className="font-bold text-sm text-slate-800">
                           {inv.type === 'sale' ? 'فاتورة مبيعات' : 'فاتورة مشتريات'}
                         </div>

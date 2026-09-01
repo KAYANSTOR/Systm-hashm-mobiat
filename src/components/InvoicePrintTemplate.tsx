@@ -11,7 +11,30 @@ interface InvoicePrintTemplateProps {
 }
 
 export default function InvoicePrintTemplate({ invoice, partyName, onClose }: InvoicePrintTemplateProps) {
+  const [cachedBlob, setCachedBlob] = React.useState<Blob | null>(null);
+  const [isGenerating, setIsGenerating] = React.useState(true);
   const printRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const generateBlob = async () => {
+      if (!printRef.current) return;
+      try {
+        const filter = (node: HTMLElement) => {
+          if (node.tagName === 'LINK' && (node as HTMLLinkElement).href.includes('fonts.googleapis')) return false;
+          return true;
+        };
+        // small delay to ensure fonts/render is ready
+        await new Promise(r => setTimeout(r, 800));
+        const blob = await htmlToImage.toBlob(printRef.current, { quality: 0.9, pixelRatio: 2, backgroundColor: '#ffffff', filter: filter as any });
+        setCachedBlob(blob);
+      } catch (err) {
+        console.error('Pre-generation error:', err);
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+    generateBlob();
+  }, [invoice, partyName]);
 
   const handlePrint = () => {
     window.print();
@@ -60,8 +83,8 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
         <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
           <h3 className="font-bold text-lg text-slate-800">معاينة الفاتورة</h3>
           <div className="flex gap-2">
-            <button onClick={handleShareWhatsApp} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-bold transition-colors">
-              <Share2 className="w-4 h-4" /> <span className="hidden sm:inline">واتساب</span>
+            <button onClick={handleShareWhatsApp} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-bold transition-colors disabled:opacity-50">
+              <Share2 className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">واتساب</span>}
             </button>
             <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-bold transition-colors">
               <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة / PDF</span>

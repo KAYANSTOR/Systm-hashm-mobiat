@@ -78,14 +78,14 @@ export default function Vouchers() {
         </div>
       </div>
 
-      <div className="bg-white p-2 rounded-xl border border-slate-200 inline-flex shadow-sm gap-1 overflow-x-auto max-w-full">
+      <div className="bg-white p-2 rounded-xl border border-slate-200 flex flex-wrap shadow-sm gap-1 max-w-full">
         <button onClick={() => setActiveFilter('all')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${activeFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>الكل</button>
         <button onClick={() => setActiveFilter('receipt')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeFilter === 'receipt' ? 'bg-emerald-100 text-emerald-800' : 'text-slate-600 hover:bg-slate-50'}`}><ArrowDownRight className="w-4 h-4" /> قبض</button>
         <button onClick={() => setActiveFilter('payment')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeFilter === 'payment' ? 'bg-rose-100 text-rose-800' : 'text-slate-600 hover:bg-slate-50'}`}><ArrowUpRight className="w-4 h-4" /> صرف</button>
         <button onClick={() => setActiveFilter('deferred')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeFilter === 'deferred' ? 'bg-amber-100 text-amber-800' : 'text-slate-600 hover:bg-slate-50'}`}><Clock className="w-4 h-4" /> آجل</button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="sm:bg-white sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-sm sm:overflow-hidden">
         <div className="card-header">
            <div className="relative max-w-md">
             <Search className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
@@ -98,8 +98,8 @@ export default function Vouchers() {
             />
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="table-standard">
+        <div className="table-container">
+<table className="table-standard">
             <thead>
               <tr>
                 <th className="px-2 py-3">رقم السند</th>
@@ -119,9 +119,9 @@ export default function Vouchers() {
 
                 return (
                   <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-2 py-3 font-mono font-bold text-slate-700">{v.voucherNumber}</td>
-                    <td className="px-2 py-3 text-slate-600">{formatDate(v.date)}</td>
-                    <td className="px-2 py-3">
+                    <td data-label="رقم السند" className="px-2 py-3 font-mono font-bold text-slate-700">{v.voucherNumber}</td>
+                    <td data-label="التاريخ" className="px-2 py-3 text-slate-600">{formatDate(v.date)}</td>
+                    <td data-label="النوع" className="px-2 py-3">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
                         v.type === 'receipt' ? 'bg-emerald-100 text-emerald-800' :
                         v.type === 'payment' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
@@ -132,17 +132,17 @@ export default function Vouchers() {
                         {v.type === 'receipt' ? 'سند قبض' : v.type === 'payment' ? 'سند صرف' : 'آجل'}
                       </span>
                     </td>
-                    <td className="px-2 py-3">
+                    <td data-label="الطرف" className="px-2 py-3">
                       <div className="font-bold text-slate-800">{partyName}</div>
                       <div className="text-xs text-slate-500">
                         {v.partyType === 'customer' ? 'عميل' : v.partyType === 'supplier' ? 'مورد' : 'أخرى'}
                       </div>
                     </td>
-                    <td className="px-2 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(v.amount)}</td>
-                    <td className="px-2 py-3 text-slate-600">
+                    <td data-label="المبلغ" className="px-2 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(v.amount)}</td>
+                    <td data-label="طريقة الدفع" className="px-2 py-3 text-slate-600">
                       {v.paymentMethod === 'cash' ? 'نقدي' : v.paymentMethod === 'bank' ? 'حوالة بنكية' : 'شيك'}
                     </td>
-                    <td className="px-2 py-3 text-slate-500 max-w-[200px] truncate" title={v.description}>
+                    <td data-label="البيان" className="px-2 py-3 text-slate-500 max-w-[200px] truncate" title={v.description}>
                       <div className="flex justify-between items-center">
                         <span className="truncate">{v.description}</span>
                         <div className="flex gap-1 shrink-0">
@@ -163,7 +163,7 @@ export default function Vouchers() {
               
               {filteredVouchers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500 sm:!justify-center !justify-center">
                     لا توجد سندات مطابقة للبحث.
                   </td>
                 </tr>

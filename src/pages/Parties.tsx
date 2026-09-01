@@ -84,7 +84,7 @@ export default function Parties() {
         </button>
       </div>
 
-      <div className="bg-white p-2 rounded-xl border border-slate-200 inline-flex shadow-sm">
+      <div className="bg-white p-2 rounded-xl border border-slate-200 flex flex-wrap shadow-sm gap-1">
         <button 
           onClick={() => setActiveTab('customers')}
           className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors ${
@@ -105,7 +105,7 @@ export default function Parties() {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="sm:bg-white sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-sm sm:overflow-hidden">
         <div className="card-header">
            <div className="relative max-w-md">
             <Search className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
@@ -119,7 +119,7 @@ export default function Parties() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="table-container">
           {activeTab === 'customers' ? (
             <table className="table-standard">
               <thead>
@@ -135,16 +135,16 @@ export default function Parties() {
               <tbody className="divide-y divide-slate-100">
                 {customers.filter(c => c.name.includes(searchTerm) || c.phone.includes(searchTerm)).map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-2 py-3 font-bold text-slate-800">{c.name}</td>
-                    <td className="px-2 py-3 font-mono text-slate-600">{c.phone}</td>
-                    <td className="px-2 py-3 text-slate-600">{c.address}</td>
-                    <td className="px-2 py-3">
+                    <td data-label="اسم العميل" className="px-2 py-3 font-bold text-slate-800">{c.name}</td>
+                    <td data-label="رقم الهاتف" className="px-2 py-3 font-mono text-slate-600">{c.phone}</td>
+                    <td data-label="العنوان" className="px-2 py-3 text-slate-600">{c.address}</td>
+                    <td data-label="النوع" className="px-2 py-3">
                       <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
                         {c.type === 'wholesale' ? 'جملة' : 'مفرد'}
                       </span>
                     </td>
-                    <td className="px-2 py-3 font-black text-rose-600" dir="ltr">{formatCurrency(c.balance)}</td>
-                    <td className="px-2 py-3 flex items-center gap-2 justify-end">
+                    <td data-label="الرصيد" className="px-2 py-3 font-black text-rose-600" dir="ltr">{formatCurrency(c.balance)}</td>
+                    <td data-label="الإجراءات" className="px-2 py-3 flex items-center gap-2 justify-end">
                       <button onClick={() => openModal(c)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Edit className="w-4 h-4"/></button>
                       <button onClick={() => handleDelete(c.id)} className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
                     </td>
@@ -166,11 +166,11 @@ export default function Parties() {
               <tbody className="divide-y divide-slate-100">
                 {suppliers.filter(s => s.name.includes(searchTerm) || s.phone.includes(searchTerm)).map((s) => (
                   <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-2 py-3 font-bold text-slate-800">{s.name}</td>
-                    <td className="px-2 py-3 text-slate-600">{s.company}</td>
-                    <td className="px-2 py-3 font-mono text-slate-600">{s.phone}</td>
-                    <td className="px-2 py-3 font-black text-emerald-600" dir="ltr">{formatCurrency(s.balance)}</td>
-                    <td className="px-2 py-3 flex items-center gap-2 justify-end">
+                    <td data-label="اسم المورد" className="px-2 py-3 font-bold text-slate-800">{s.name}</td>
+                    <td data-label="الشركة/المعمل" className="px-2 py-3 text-slate-600">{s.company}</td>
+                    <td data-label="رقم الهاتف" className="px-2 py-3 font-mono text-slate-600">{s.phone}</td>
+                    <td data-label="الرصيد" className="px-2 py-3 font-black text-emerald-600" dir="ltr">{formatCurrency(s.balance)}</td>
+                    <td data-label="الإجراءات" className="px-2 py-3 flex items-center gap-2 justify-end">
                       <button onClick={() => openModal(s)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Edit className="w-4 h-4"/></button>
                       <button onClick={() => handleDelete(s.id)} className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
                     </td>

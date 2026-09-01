@@ -104,9 +104,9 @@ export default function Inventory() {
       </div>
 
       {/* Inventory Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="table-standard">
+      <div className="sm:bg-white sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-sm sm:overflow-hidden">
+        <div className="table-container">
+<table className="table-standard">
             <thead>
               <tr>
                 <th className="px-2 py-3">الرمز</th>
@@ -121,12 +121,12 @@ export default function Inventory() {
             <tbody className="divide-y divide-slate-100">
               {filteredInventory.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-2 py-3 font-mono text-slate-500">{item.code}</td>
-                  <td className="px-2 py-3">
+                  <td data-label="الرمز" className="px-2 py-3 font-mono text-slate-500">{item.code}</td>
+                  <td data-label="اسم المادة" className="px-2 py-3">
                     <div className="font-bold text-slate-800">{item.name}</div>
                     <div className="text-xs text-slate-500 mt-0.5">اللون: {item.color || 'غير محدد'}</div>
                   </td>
-                  <td className="px-2 py-3">
+                  <td data-label="الفئة" className="px-2 py-3">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
                       {item.category === 'fabric' && <Scissors className="w-3.5 h-3.5" />}
                       {item.category === 'fabric' ? 'أقمشة' : 
@@ -134,16 +134,16 @@ export default function Inventory() {
                        item.category === 'accessory' ? 'إكسسوارات' : 'قطع غيار'}
                     </span>
                   </td>
-                  <td className="px-2 py-3 text-center">
-                    <span className="font-bold text-lg text-slate-800">{item.quantity}</span>
+                  <td data-label="الكمية" className="px-2 py-3 text-center">
+                    <div className="flex items-center justify-end gap-2"><span className="font-bold text-lg text-slate-800">{item.quantity}</span>
                     <span className="text-xs text-slate-500 mr-1">
-                      {item.unit === 'roll' ? 'طاقة/رول' : 
-                       item.unit === 'meter' ? 'متر' : 'قطعة'}
-                    </span>
+                      {item.unit === 'roll' ? 'طاقة/رول' :
+                        item.unit === 'meter' ? 'متر' : 'قطعة'}
+                    </span></div>
                   </td>
-                  <td className="px-2 py-3 font-medium text-slate-600">{formatCurrency(item.costPrice)}</td>
-                  <td className="px-2 py-3 font-bold text-emerald-600">{formatCurrency(item.sellingPrice)}</td>
-                  <td className="px-2 py-3 flex items-center gap-2">
+                  <td data-label="سعر التكلفة" className="px-2 py-3 font-medium text-slate-600">{formatCurrency(item.costPrice)}</td>
+                  <td data-label="سعر البيع" className="px-2 py-3 font-bold text-emerald-600">{formatCurrency(item.sellingPrice)}</td>
+                  <td data-label="إجراءات" className="px-2 py-3 flex items-center gap-2">
                     <button onClick={() => openModal(item)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Edit className="w-4 h-4"/></button>
                     <button onClick={() => handleDelete(item.id)} className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
                   </td>
@@ -152,7 +152,7 @@ export default function Inventory() {
               
               {filteredInventory.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500 sm:!justify-center !justify-center">
                     لم يتم العثور على أي مواد مطابقة للبحث.
                   </td>
                 </tr>

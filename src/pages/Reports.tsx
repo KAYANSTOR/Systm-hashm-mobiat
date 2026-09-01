@@ -113,7 +113,7 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex gap-4 overflow-x-auto no-print">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-2 sm:gap-4 no-print">
         <button 
           onClick={() => setReportType('sales')}
           className={`px-6 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors ${reportType === 'sales' ? 'bg-brand-50 text-brand-700 border border-brand-200' : 'text-slate-600 hover:bg-slate-50'}`}
@@ -233,8 +233,8 @@ export default function Reports() {
         {/* Report Content */}
         {reportType === 'sales' && (
           <div className="space-y-6">
-            <div className="overflow-x-auto">
-              <table className="table-standard w-full">
+            <div className="table-container">
+<table className="table-standard w-full">
                 <thead>
                   <tr className="bg-slate-800 text-white print:bg-slate-200 print:text-slate-900">
                     <th className="px-3 py-3 font-bold rounded-tr-lg">رقم الفاتورة</th>
@@ -253,22 +253,22 @@ export default function Reports() {
                     const customerName = customers.find(c => c.id === inv.partyId)?.name || 'غير محدد';
                     return (
                       <tr key={inv.id} className="text-slate-800 hover:bg-slate-50/50">
-                        <td className="px-3 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
-                        <td className="px-3 py-3 text-slate-600 whitespace-nowrap">{formatDate(inv.date)}</td>
-                        <td className="px-3 py-3 font-bold">{customerName}</td>
-                        <td className="px-3 py-3 text-sm text-slate-600 max-w-xs truncate" title={summary.names !== '-' ? summary.names : ''}>
+                        <td data-label="رقم الفاتورة" className="px-3 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
+                        <td data-label="التاريخ" className="px-3 py-3 text-slate-600 whitespace-nowrap">{formatDate(inv.date)}</td>
+                        <td data-label="العميل" className="px-3 py-3 font-bold">{customerName}</td>
+                        <td data-label="الأصناف" className="px-3 py-3 text-sm text-slate-600 max-w-xs truncate" title={summary.names !== '-' ? summary.names : ''}>
                           {summary.names}
                         </td>
-                        <td className="px-3 py-3 text-center font-bold">{summary.totalQty}</td>
-                        <td className="px-3 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(inv.total)}</td>
-                        <td className="px-3 py-3 font-bold text-emerald-600" dir="ltr">{formatCurrency(inv.paidAmount)}</td>
-                        <td className="px-3 py-3 font-bold text-rose-600 text-left" dir="ltr">{formatCurrency(inv.remainingAmount)}</td>
+                        <td data-label="الكمية" className="px-3 py-3 text-center font-bold">{summary.totalQty}</td>
+                        <td data-label="الإجمالي" className="px-3 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(inv.total)}</td>
+                        <td data-label="المدفوع" className="px-3 py-3 font-bold text-emerald-600" dir="ltr">{formatCurrency(inv.paidAmount)}</td>
+                        <td data-label="المتبقي" className="px-3 py-3 font-bold text-rose-600 text-left" dir="ltr">{formatCurrency(inv.remainingAmount)}</td>
                       </tr>
                     );
                   })}
                   {filteredSalesInvoices.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500 font-medium">
+                      <td colSpan={8} className="px-6 py-12 text-center text-slate-500 font-medium sm:!justify-center !justify-center">
                         لا توجد مبيعات مطابقة للبحث
                       </td>
                     </tr>
@@ -311,10 +311,10 @@ export default function Reports() {
               <tbody className="divide-y divide-slate-200">
                 {customers.map((c) => (
                   <tr key={c.id} className="text-slate-800">
-                    <td className="px-4 py-3 font-bold">{c.name}</td>
-                    <td className="px-4 py-3 font-mono">{c.phone}</td>
-                    <td className="px-4 py-3">{c.type === 'wholesale' ? 'جملة' : 'مفرد'}</td>
-                    <td className="px-4 py-3 font-black text-left text-rose-600" dir="ltr">
+                    <td data-label="اسم العميل" className="px-4 py-3 font-bold">{c.name}</td>
+                    <td data-label="رقم الهاتف" className="px-4 py-3 font-mono">{c.phone}</td>
+                    <td data-label="النوع" className="px-4 py-3">{c.type === 'wholesale' ? 'جملة' : 'مفرد'}</td>
+                    <td data-label="الرصيد المطلوب" className="px-4 py-3 font-black text-left text-rose-600" dir="ltr">
                       {formatCurrency(c.balance)}
                     </td>
                   </tr>
