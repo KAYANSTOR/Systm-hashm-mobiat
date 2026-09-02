@@ -1,4 +1,6 @@
-import React, { useRef } from 'react';
+const fs = require('fs');
+
+const content = `import React, { useRef } from 'react';
 import { Printer, Download, Share2, X, CheckCircle } from 'lucide-react';
 import { Invoice } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
@@ -38,7 +40,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
     if (!printRef.current) return null;
     const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
       .map(el => el.outerHTML)
-      .join('\n');
+      .join('\\n');
     const html = printRef.current.outerHTML;
     
     const response = await fetch('/api/pdf', {
@@ -80,7 +82,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `فاتورة_${invoice.invoiceNumber}.pdf`;
+      link.download = \`فاتورة_\${invoice.invoiceNumber}.pdf\`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -133,7 +135,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
           
           <div ref={printRef} className="print-section bg-white w-full max-w-[210mm] min-h-[297mm] shadow-sm relative overflow-hidden flex flex-col p-6" style={{ fontFamily: 'Cairo, sans-serif' }}>
             <style>
-              {`
+              {\`
                 .invoice-print-table th, .invoice-print-table td {
                   border: 2px solid #088c94 !important;
                 }
@@ -149,7 +151,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
                 .chevron-separator {
                   clip-path: polygon(100% 0, 85% 50%, 100% 100%, 0 100%, 15% 50%, 0 0);
                 }
-              `}
+              \`}
             </style>
             
             {/* Header Frame */}
@@ -193,11 +195,11 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
                  <span className="ml-4 font-black text-2xl">فاتورة</span>
                  <div className="flex items-center gap-6">
                    <label className="flex items-center gap-2 cursor-pointer">
-                     <div className={`w-5 h-5 rounded-full border-2 border-black flex items-center justify-center ${invoice.paymentType === 'cash' ? 'bg-black' : 'bg-white'}`}></div>
+                     <div className={\`w-5 h-5 rounded-full border-2 border-black flex items-center justify-center \${invoice.paymentType === 'cash' ? 'bg-black' : 'bg-white'}\`}></div>
                      <span>نقدًا</span>
                    </label>
                    <label className="flex items-center gap-2 cursor-pointer">
-                     <div className={`w-5 h-5 rounded-full border-2 border-black flex items-center justify-center ${invoice.paymentType !== 'cash' ? 'bg-black' : 'bg-white'}`}></div>
+                     <div className={\`w-5 h-5 rounded-full border-2 border-black flex items-center justify-center \${invoice.paymentType !== 'cash' ? 'bg-black' : 'bg-white'}\`}></div>
                      <span>آجل</span>
                    </label>
                  </div>
@@ -247,7 +249,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
                       <tr key={index} className="h-10">
                         <td className="py-1">{index + 1}</td>
                         <td className="py-1 text-right pr-4 font-cairo text-2xl font-black leading-tight">
-                          {item.name} {item.description ? ` - ${item.description}` : ''}
+                          {item.name} {item.description ? \` - \${item.description}\` : ''}
                         </td>
                         <td className="py-1">{isOther ? item.quantity : ''}</td>
                         <td className="py-1">{isWar ? item.quantity : ''}</td>
@@ -259,7 +261,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
                   })}
                   {/* Fill empty rows to make it look like a full page voucher */}
                   {emptyRows.map((_, index) => (
-                    <tr key={`empty-${index}`} className="h-10">
+                    <tr key={\`empty-\${index}\`} className="h-10">
                       <td className="empty-row"></td>
                       <td className="empty-row"></td>
                       <td className="empty-row"></td>
@@ -325,3 +327,6 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
     </div>
   );
 }
+`
+
+fs.writeFileSync('src/components/InvoicePrintTemplate.tsx', content);
