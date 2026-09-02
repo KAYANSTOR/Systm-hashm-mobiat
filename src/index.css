@@ -24,6 +24,50 @@
     font-family: var(--font-cairo);
     @apply bg-[#f4f6f9] text-slate-900;
   }
+
+  /* Global Form Control Styling (RTL Aware) */
+  select {
+    @apply appearance-none shadow-sm transition-all;
+    background-color: white !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23208480'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9' /%3E%3C/svg%3E") !important;
+    background-position: left 1rem center !important;
+    background-size: 1.25rem !important;
+    background-repeat: no-repeat !important;
+    padding-left: 2.75rem !important;
+    cursor: pointer !important;
+}
+  
+  select:hover {
+    @apply border-brand-500/50;
+  }
+
+  /* Custom styling for date inputs */
+  input[type="date"] {
+    @apply relative shadow-sm cursor-pointer transition-all;
+  }
+  
+  input[type="date"]:hover {
+    @apply border-brand-500/50;
+  }
+  
+  /* Colorize the calendar icon to match brand-500 and position it perfectly */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+    /* This filter makes the black default icon match #208480 (Teal/Brand) */
+    filter: invert(36%) sepia(35%) saturate(740%) hue-rotate(133deg) brightness(94%) contrast(85%);
+    transform: scale(1.2);
+    margin-left: 0.25rem;
+  }
+  
+  /* Make regular inputs match the refined aesthetic */
+  input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="password"] {
+    @apply shadow-sm transition-all;
+  }
+  
+  input[type="text"]:hover, input[type="number"]:hover, input[type="tel"]:hover {
+    @apply border-brand-500/50;
+  }
 }
 
 @layer components {
@@ -61,7 +105,7 @@
   }
 
   .input-field {
-    @apply w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-slate-800;
+    @apply w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-bold text-slate-800 shadow-sm hover:border-brand-500/50;
   }
   
   .label {
@@ -196,3 +240,4 @@
     border-radius: 0 !important;
   }
 }
+/* Cache bust 1788382126 */
