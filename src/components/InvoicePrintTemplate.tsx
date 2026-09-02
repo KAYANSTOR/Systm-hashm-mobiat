@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
-import { formatCurrency, formatDate } from '../lib/utils';
+import { Share2, Printer, X, Download } from 'lucide-react';
 import { Invoice } from '../types';
-import * as htmlToImage from 'html-to-image';
-import { Share2, Printer, X } from 'lucide-react';
+import { formatCurrency, formatDate } from '../lib/utils';
+import { useStore } from '../context/StoreContext';
 
 interface InvoicePrintTemplateProps {
   invoice: Invoice;
@@ -11,83 +11,119 @@ interface InvoicePrintTemplateProps {
 }
 
 export default function InvoicePrintTemplate({ invoice, partyName, onClose }: InvoicePrintTemplateProps) {
-  const [cachedBlob, setCachedBlob] = React.useState<Blob | null>(null);
-  const [isGenerating, setIsGenerating] = React.useState(true);
+  const [isGenerating, setIsGenerating] = React.useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  
+  const { customers, suppliers, approveInvoice } = useStore();
+  
+  const party = invoice.type === 'sale' 
+    ? customers.find(c => c.id === invoice.partyId) 
+    : suppliers.find(s => s.id === invoice.partyId);
 
-  React.useEffect(() => {
-    const generateBlob = async () => {
-      if (!printRef.current) return;
-      try {
-        const filter = (node: HTMLElement) => {
-          if (node.tagName === 'LINK' && (node as HTMLLinkElement).href.includes('fonts.googleapis')) return false;
-          return true;
-        };
-        // small delay to ensure fonts/render is ready
-        await new Promise(r => setTimeout(r, 800));
-        const blob = await htmlToImage.toBlob(printRef.current, { quality: 0.9, pixelRatio: 2, backgroundColor: '#ffffff', filter: filter as any });
-        setCachedBlob(blob);
-      } catch (err) {
-        console.error('Pre-generation error:', err);
-      } finally {
-        setIsGenerating(false);
-      }
-    };
-    generateBlob();
-  }, [invoice, partyName]);
+  // Accounting Ledger Calculations
+  // Party balance in store is the CURRENT balance.
+  const currentBalance = party?.balance || 0;
+  let previousBalance = currentBalance;
+  
+  if (invoice.isApproved) {
+    if (invoice.type === 'sale') {
+      previousBalance = currentBalance - invoice.remainingAmount;
+    } else {
+      previousBalance = currentBalance + invoice.remainingAmount;
+    }
+  }
 
-  const handlePrint = () => {
-    window.print();
+  const grandTotal = previousBalance + (invoice.type === 'sale' ? invoice.remainingAmount : -invoice.remainingAmount);
+
+  const fetchPdfBlob = async () => {
+    if (!printRef.current) return null;
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(el => el.outerHTML)
+      .join('\n');
+    const html = printRef.current.outerHTML;
+    
+    const response = await fetch('/api/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, styles, orientation: 'portrait' })
+    });
+    
+    if (!response.ok) throw new Error('PDF Generation Failed');
+    return await response.blob();
   };
 
-  const handleShareWhatsApp = async () => {
-    if (!printRef.current) return;
-    try {
-      const filter = (node: HTMLElement) => {
-        if (node.tagName === 'LINK' && (node as HTMLLinkElement).href.includes('fonts.googleapis')) {
-          return false;
-        }
-        return true;
-      };
+  const handlePrint = () => { window.print(); };
 
-      const imageBlob = await htmlToImage.toBlob(printRef.current, { 
-        quality: 0.9, 
-        pixelRatio: 2, 
-        backgroundColor: '#ffffff',
-        filter: filter as any
-      });
-      
-      if (imageBlob && navigator.canShare && navigator.canShare({ files: [new File([imageBlob], 'test.png', { type: 'image/png' })] })) {
-        const file = new File([imageBlob], `فاتورة_${invoice.invoiceNumber}.png`, { type: 'image/png' });
-        await navigator.share({
-          title: 'فاتورة ' + (invoice.type === 'sale' ? 'مبيعات' : 'مشتريات'),
-          text: `فاتورة رقم: ${invoice.invoiceNumber}\nالمبلغ الإجمالي: ${formatCurrency(invoice.total)}`,
-          files: [file],
-        });
+  const handleShareWhatsApp = async () => {
+    try {
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const file = new File([blob], 'فاتورة.pdf', { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: 'فاتورة', files: [file] });
       } else {
-        const text = `*معامل هاشم الأحمدي للتطريز الإلكتروني*\n\nفاتورة ${invoice.type === 'sale' ? 'مبيعات' : 'مشتريات'}\nرقم: ${invoice.invoiceNumber}\nالتاريخ: ${formatDate(invoice.date)}\n\nالطرف: ${partyName}\nالإجمالي: ${formatCurrency(invoice.total)}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        alert('المتصفح لا يدعم مشاركة الملفات مباشرة. يمكنك تحميل الـ PDF ثم مشاركته.');
       }
-    } catch (error: any) {
-      console.error('Error sharing:', error);
-      if (error.name === 'AbortError') return; // User canceled the share
-      const text = `*معامل هاشم الأحمدي للتطريز الإلكتروني*\n\nفاتورة ${invoice.type === 'sale' ? 'مبيعات' : 'مشتريات'}\nرقم: ${invoice.invoiceNumber}\nالتاريخ: ${formatDate(invoice.date)}\n\nالطرف: ${partyName}\nالإجمالي: ${formatCurrency(invoice.total)}`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    } catch (e) {
+      console.error(e);
+      alert('خطأ في المشاركة');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `فاتورة_${invoice.invoiceNumber}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert('حدث خطأ أثناء إنشاء الـ PDF');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Ensure minimum empty rows for traditional printed invoice structure (15 rows)
+  const MIN_ROWS = 15;
+  const emptyRowsCount = Math.max(0, MIN_ROWS - invoice.items.length);
+  const emptyRows = Array.from({ length: emptyRowsCount }).map((_, i) => i);
+
   return (
-    <div className="fixed inset-0 bg-slate-900/80 z-[100] flex flex-col items-center justify-center p-2 sm:p-4 no-print overflow-y-auto">
-      <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl flex flex-col max-h-full">
-        {/* Controls */}
-        <div className="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
-          <h3 className="font-bold text-lg text-slate-800">معاينة الفاتورة</h3>
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex flex-col items-center">
+      <div className="w-full max-w-[210mm] mx-auto flex flex-col h-full bg-slate-100 shadow-2xl">
+        
+        {/* Toolbar (Hidden in print) */}
+        <div className="bg-white p-4 shrink-0 flex items-center justify-between border-b print:hidden">
+          <h2 className="font-bold text-lg">معاينة الطباعة / PDF</h2>
           <div className="flex gap-2">
+            
+            {!invoice.isApproved && (
+              <button onClick={async () => {
+                if(confirm('هل أنت متأكد من اعتماد هذه الفاتورة؟ سيتم ترحيلها إلى الحسابات والمخزن.')) {
+                  await approveInvoice(invoice.id);
+                  onClose();
+                }
+              }} className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg font-bold transition-colors">
+                <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">اعتماد الفاتورة</span>
+              </button>
+            )}
             <button onClick={handleShareWhatsApp} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-bold transition-colors disabled:opacity-50">
-              <Share2 className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">واتساب</span>}
+              <Share2 className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">مشاركة</span>}
+            </button>
+            <button onClick={handleDownloadPDF} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold transition-colors disabled:opacity-50">
+              <Download className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">تنزيل PDF</span>}
             </button>
             <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-bold transition-colors">
-              <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة / PDF</span>
+              <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة</span>
             </button>
             <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
               <X className="w-5 h-5" />
@@ -96,114 +132,178 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
         </div>
 
         {/* Printable Area Wrapper */}
-        <div className="overflow-y-auto p-4 sm:p-8 flex-1 bg-slate-100 flex items-start justify-center">
+        <div className="overflow-y-auto flex-1 flex items-start justify-center p-4">
           
-          {/* Actual Print Content */}
-          <div ref={printRef} className="print-section bg-white w-full max-w-[210mm] rounded-3xl border-2 border-[#208480] p-6 shadow-sm relative overflow-hidden" style={{ minHeight: '297mm', fontFamily: 'Arial, Tahoma, Sakkal Majalla, serif' }}>
+          <div ref={printRef} className="print-section bg-white w-full max-w-[210mm] min-h-[297mm] shadow-sm relative overflow-hidden flex flex-col p-8" style={{ fontFamily: 'Arial, Tahoma, Sakkal Majalla, serif' }}>
+            <style>
+              {`
+                .invoice-table th, .invoice-table td {
+                  border: 1px solid #208480 !important;
+                }
+                .invoice-table th {
+                  background-color: #208480 !important;
+                  color: white !important;
+                }
+              `}
+            </style>
             
             {/* Header */}
-            <div className="flex justify-between items-center mb-8 border-b-2 border-[#208480] pb-6">
+            <div className="flex justify-between items-start mb-6 border-b-2 border-[#208480] pb-4">
               <div className="flex-1 text-right">
-                <h1 className="font-extrabold text-2xl text-slate-900 mb-1">معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني</h1>
-                <h2 className="font-bold text-lg text-slate-700 mb-2">صنعاء - شارع الزبيري - مقابل وزارة الدفاع</h2>
+                <h1 className="font-extrabold text-3xl text-slate-900 mb-2">معامل هاشم الأحمدي</h1>
+                <h2 className="font-bold text-xl text-slate-700 mb-1">للتصميم والتطريز الإلكتروني</h2>
+                <p className="text-slate-600 mb-1">صنعاء - شارع الزبيري - مقابل وزارة الدفاع</p>
                 <p className="font-bold text-lg" dir="ltr">770 447 441 - 730 447 441</p>
               </div>
-              <div className="w-40 ml-4 shrink-0 flex flex-col items-center">
-                 {/* Mimicking logo with CSS */}
-                 <div className="text-[#208480] font-extrabold text-5xl leading-none relative">
-                   <span className="absolute -top-4 right-0 text-sm">الأحمدي</span>
-                   هاشم
+              <div className="w-40 ml-4 shrink-0 flex flex-col items-center justify-center border-4 border-[#208480] rounded-full p-4 aspect-square">
+                 <div className="text-[#208480] font-black text-4xl text-center leading-none">
+                   هاشم<br/><span className="text-xl">الأحمدي</span>
                  </div>
-                 <div className="text-[#208480] font-bold text-sm mt-1 whitespace-nowrap">للتطريز الإلكتروني</div>
               </div>
             </div>
 
-            {/* Title Bar & Info */}
-            <div className="flex justify-between items-center mb-8 bg-[#208480]/5 p-4 rounded-2xl border border-[#208480]/20">
-              <div>
-                <h3 className="text-[#208480] font-black text-2xl mb-2">
-                  فاتورة {invoice.type === 'sale' ? 'مبيعات' : 'مشتريات'}
-                  {!invoice.isApproved && <span className="text-sm bg-rose-100 text-rose-600 px-2 py-1 rounded-full mr-3 align-middle">مسودة</span>}
-                </h3>
-                <div className="text-lg font-bold text-slate-800">
-                  الطرف: <span className="text-[#208480]">{partyName}</span>
+            {/* Title & Info */}
+            <div className="text-center mb-6">
+               <h3 className="inline-block px-8 py-2 border-2 border-[#208480] text-[#208480] font-black text-2xl rounded-lg">
+                 {invoice.type === 'sale' ? (invoice.invoiceType === 'SERVICE' ? 'فاتورة خدمة تطريز' : 'فاتورة مبيعات') : 'فاتورة مشتريات'}
+               </h3>
+               {!invoice.isApproved && <div className="text-rose-600 font-bold mt-2">نسخة غير معتمدة (مسودة)</div>}
+            </div>
+
+            <div className="flex justify-between items-center mb-4 text-lg font-bold">
+              <div className="flex items-center gap-2">
+                <span>المطلوب من الأخ /</span>
+                <span className="border-b-2 border-dotted border-slate-400 min-w-[200px] inline-block px-2">{partyName}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <span>رقم الفاتورة:</span>
+                  <span className="font-mono text-[#208480]">{invoice.invoiceNumber}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span>التاريخ:</span>
+                  <span>{formatDate(invoice.date)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span>نوع الدفع:</span>
+                  <span className="font-bold text-[#208480]">
+                    {invoice.paymentType === 'cash' ? 'نقدي' : invoice.paymentType === 'deferred' ? 'آجل' : 'دفع جزئي'}
+                  </span>
                 </div>
               </div>
-              <div className="text-left font-bold text-lg">
-                <div>رقم الفاتورة: <span className="font-mono text-xl">{invoice.invoiceNumber}</span></div>
-                <div>التاريخ: <span>{formatDate(invoice.date)}</span></div>
-              </div>
             </div>
 
-            {/* Items Table */}
-            <table className="w-full text-right mb-8 border-collapse">
+            {/* Main Table */}
+            <table className="w-full text-right mb-6 border-collapse invoice-table">
               <thead>
-                <tr className="bg-[#208480] text-white">
-                  <th className="py-3 px-4 border border-[#208480] rounded-tr-lg">م</th>
-                  <th className="py-3 px-4 border border-[#208480]">البيان / الصنف</th>
-                  <th className="py-3 px-4 border border-[#208480] text-center">الكمية</th>
-                  <th className="py-3 px-4 border border-[#208480] text-center">السعر</th>
-                  <th className="py-3 px-4 border border-[#208480] rounded-tl-lg text-center">الإجمالي</th>
+                <tr>
+                  <th className="py-2 px-2 text-center w-12">م</th>
+                  <th className="py-2 px-4">البيان</th>
+                  <th className="py-2 px-3 text-center w-24">الوحدة</th>
+                  <th className="py-2 px-3 text-center w-24">الكمية</th>
+                  <th className="py-2 px-3 text-center w-32">السعر</th>
+                  <th className="py-2 px-3 text-center w-32">الإجمالي</th>
                 </tr>
               </thead>
               <tbody>
                 {invoice.items.map((item, idx) => (
-                  <tr key={idx} className="border-b border-slate-200">
-                    <td className="py-3 px-4 border-r border-l border-slate-200 text-center font-bold">{idx + 1}</td>
-                    <td className="py-3 px-4 border-l border-slate-200 font-bold">{item.name}</td>
-                    <td className="py-3 px-4 border-l border-slate-200 text-center font-bold">{item.quantity}</td>
-                    <td className="py-3 px-4 border-l border-slate-200 text-center font-bold" dir="ltr">{formatCurrency(item.unitPrice)}</td>
-                    <td className="py-3 px-4 border-l border-slate-200 text-center font-black text-[#208480]" dir="ltr">{formatCurrency(item.total)}</td>
+                  <tr key={idx}>
+                    <td className="py-2 px-2 text-center font-bold">{idx + 1}</td>
+                    <td className="py-2 px-4 font-bold">{item.name} {item.description ? ` - ${item.description}` : ''}</td>
+                    <td className="py-2 px-3 text-center">{item.unit || '-'}</td>
+                    <td className="py-2 px-3 text-center font-bold">{item.quantity}</td>
+                    <td className="py-2 px-3 text-center font-bold" dir="ltr">{formatCurrency(item.unitPrice)}</td>
+                    <td className="py-2 px-3 text-center font-black text-[#208480]" dir="ltr">{formatCurrency(item.total)}</td>
+                  </tr>
+                ))}
+                {/* Empty Rows to maintain traditional structure */}
+                {emptyRows.map((_, i) => (
+                  <tr key={`empty-${i}`}>
+                    <td className="py-2 px-2 text-center font-bold text-transparent">.</td>
+                    <td className="py-2 px-4"></td>
+                    <td className="py-2 px-3"></td>
+                    <td className="py-2 px-3"></td>
+                    <td className="py-2 px-3"></td>
+                    <td className="py-2 px-3"></td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            {/* Summary */}
-            <div className="flex justify-end">
-              <div className="w-80 bg-slate-50 p-4 rounded-xl border border-slate-200 text-lg">
-                <div className="flex justify-between mb-2">
-                  <span className="font-bold text-slate-600">الإجمالي:</span>
-                  <span className="font-bold" dir="ltr">{formatCurrency(invoice.subTotal)}</span>
-                </div>
-                {invoice.discount > 0 && (
-                  <div className="flex justify-between mb-2 text-rose-600">
-                    <span className="font-bold">الخصم:</span>
-                    <span className="font-bold" dir="ltr">{formatCurrency(invoice.discount)}</span>
+            {/* Footer Summary Section */}
+            <div className="flex justify-between items-stretch mt-auto">
+              
+              {/* Previous Balance Ledger */}
+              <div className="w-64 border-2 border-[#208480] rounded-xl overflow-hidden flex flex-col">
+                <div className="bg-[#208480] text-white text-center py-1 font-bold">كشف حساب العميل</div>
+                <div className="flex-1 p-3 flex flex-col justify-center gap-2 bg-slate-50 font-bold">
+                  <div className="flex justify-between">
+                    <span>رصيد سابق:</span>
+                    <span dir="ltr">{formatCurrency(previousBalance)}</span>
                   </div>
-                )}
-                <div className="flex justify-between mb-4 border-b border-slate-200 pb-3 mt-3">
-                  <span className="font-black text-slate-800">الصافي:</span>
-                  <span className="font-black text-[#208480] text-xl" dir="ltr">{formatCurrency(invoice.total)}</span>
+                  <div className="flex justify-between text-rose-600">
+                    <span>قيمة الفاتورة المتبقية:</span>
+                    <span dir="ltr">
+                      {invoice.type === 'sale' 
+                        ? formatCurrency(invoice.remainingAmount)
+                        : formatCurrency(-invoice.remainingAmount)}
+                    </span>
+                  </div>
+                  <div className="border-t-2 border-slate-300 my-1"></div>
+                  <div className="flex justify-between text-[#208480] text-lg font-black">
+                    <span>الرصيد الحالي:</span>
+                    <span dir="ltr">{formatCurrency(grandTotal)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between mb-2 text-emerald-600">
-                  <span className="font-bold">المدفوع:</span>
-                  <span className="font-bold" dir="ltr">{formatCurrency(invoice.paidAmount)}</span>
-                </div>
-                <div className="flex justify-between text-rose-600 mt-2">
-                  <span className="font-bold">المتبقي:</span>
-                  <span className="font-black" dir="ltr">{formatCurrency(invoice.remainingAmount)}</span>
-                </div>
+              </div>
+
+              {/* Invoice Totals */}
+              <div className="w-72">
+                <table className="w-full border-collapse invoice-table font-bold">
+                  <tbody>
+                    <tr>
+                      <td className="py-1 px-3 bg-[#208480]/10">إجمالي الفاتورة:</td>
+                      <td className="py-1 px-3 text-left" dir="ltr">{formatCurrency(invoice.subTotal)}</td>
+                    </tr>
+                    {invoice.discount > 0 && (
+                      <tr>
+                        <td className="py-1 px-3 bg-[#208480]/10">الخصم:</td>
+                        <td className="py-1 px-3 text-left text-rose-600" dir="ltr">{formatCurrency(invoice.discount)}</td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td className="py-1 px-3 bg-[#208480]/10">الصافي:</td>
+                      <td className="py-1 px-3 text-left text-lg font-black text-[#208480]" dir="ltr">{formatCurrency(invoice.total)}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 px-3 bg-[#208480]/10">المدفوع:</td>
+                      <td className="py-1 px-3 text-left text-emerald-600" dir="ltr">{formatCurrency(invoice.paidAmount)}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 px-3 bg-[#208480]/10">المتبقي:</td>
+                      <td className="py-1 px-3 text-left text-rose-600 font-black" dir="ltr">{formatCurrency(invoice.remainingAmount)}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
             {/* Notes */}
             {invoice.notes && (
-              <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <h4 className="font-bold text-slate-700 mb-2">ملاحظات:</h4>
-                <p className="text-slate-600">{invoice.notes}</p>
+              <div className="mt-4 border-2 border-slate-300 p-2 rounded-lg font-bold">
+                <span className="text-[#208480]">ملاحظات: </span> {invoice.notes}
               </div>
             )}
 
             {/* Signatures */}
-            <div className="flex justify-between mt-16 px-12 font-bold text-xl">
+            <div className="flex justify-between mt-12 px-8 font-bold text-lg pb-4">
               <div className="text-center w-48">
-                <div className="mb-8 text-slate-600">توقيع المستلم</div>
-                <div className="border-t-2 border-dotted border-slate-400 pt-2"></div>
+                <div className="mb-8">توقيع المستلم</div>
+                <div className="border-t-2 border-dashed border-slate-400 pt-1"></div>
               </div>
               <div className="text-center w-48">
-                <div className="mb-8 text-slate-600">إدارة المعمل</div>
-                <div className="border-t-2 border-dotted border-slate-400 pt-2"></div>
+                <div className="mb-8 text-[#208480]">توقيع الإدارة / المحاسب</div>
+                <div className="border-t-2 border-dashed border-[#208480] pt-1"></div>
               </div>
             </div>
 

@@ -14,6 +14,12 @@
 }
 
 @layer base {
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: fixed;
+  }
   body {
     font-family: var(--font-cairo);
     @apply bg-[#f4f6f9] text-slate-900;
@@ -164,5 +170,29 @@
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+  }
+}
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-section, .print-section * {
+    visibility: visible;
+  }
+  .print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    padding: 20mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
   }
 }

@@ -13,6 +13,7 @@ export default function Sales() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [invoiceType, setInvoiceType] = useState<'sale' | 'purchase'>('sale');
+  const [salesType, setSalesType] = useState<'PRODUCT_SALE' | 'SERVICE'>('PRODUCT_SALE');
   
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedPartyName, setSelectedPartyName] = useState('');
@@ -23,20 +24,27 @@ export default function Sales() {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [discount, setDiscount] = useState('0');
   const [paidAmount, setPaidAmount] = useState('0');
+  const [paymentType, setPaymentType] = useState<'cash' | 'deferred' | 'partial'>('cash');
   const [notes, setNotes] = useState('');
 
   // Item selector state
   const [selectedItemId, setSelectedItemId] = useState('');
   const [itemQuantity, setItemQuantity] = useState('1');
   const [itemPrice, setItemPrice] = useState('');
+  const [serviceName, setServiceName] = useState('');
+  const [serviceDesc, setServiceDesc] = useState('');
+  const [serviceUnit, setServiceUnit] = useState('وار');
 
-  const openModal = (type: 'sale' | 'purchase') => {
+  const openModal = (type: 'sale' | 'purchase', sType: 'PRODUCT_SALE' | 'SERVICE' = 'PRODUCT_SALE') => {
+    setSalesType(sType);
     setEditingInvoiceId(null);
     setInvoiceType(type);
-    const nextId = invoices.length > 0 
-      ? Math.max(...invoices.map(i => parseInt(i.invoiceNumber.replace(/\D/g, '')) || 0)) + 1 
+    const typeInvoices = invoices.filter(i => i.type === type);
+    const nextId = typeInvoices.length > 0 
+      ? Math.max(...typeInvoices.map(i => ( (() => { const n = parseInt(i.invoiceNumber.replace(/\D/g, '')); return n < 1000000000 ? (n || 0) : 0; })() ))) + 1 
       : 1;
-    setInvoiceNumber(String(nextId).padStart(3, '0'));
+    const prefix = type === 'sale' ? 'INV' : 'PUR';
+    setInvoiceNumber(`${prefix}-${String(nextId).padStart(4, '0')}`);
     setPartyId('');
     setDate(new Date().toISOString().split('T')[0]);
     setItems([]);
@@ -53,36 +61,58 @@ export default function Sales() {
     }
     setEditingInvoiceId(inv.id);
     setInvoiceType(inv.type);
+    if (inv.type === 'sale') setSalesType(inv.invoiceType || 'PRODUCT_SALE');
     setInvoiceNumber(inv.invoiceNumber);
     setPartyId(inv.partyId);
     setDate(inv.date);
     setItems(inv.items);
     setDiscount(inv.discount.toString());
     setPaidAmount(inv.paidAmount.toString());
+    setPaymentType(inv.paymentType || (inv.remainingAmount <= 0 ? 'cash' : (inv.paidAmount > 0 ? 'partial' : 'deferred')));
     setNotes(inv.notes || '');
     setIsModalOpen(true);
   };
 
   const handleAddItem = () => {
-    if (!selectedItemId) return;
-    const invItem = inventory.find(i => i.id === selectedItemId);
-    if (!invItem) return;
-
     const qty = parseFloat(itemQuantity) || 1;
-    const price = parseFloat(itemPrice) || (invoiceType === 'sale' ? invItem.sellingPrice : invItem.costPrice);
-    
-    setItems(prev => [...prev, {
-      id: Math.random().toString(),
-      inventoryItemId: invItem.id,
-      name: invItem.name,
-      quantity: qty,
-      unitPrice: price,
-      total: qty * price
-    }]);
+    const price = parseFloat(itemPrice) || 0;
 
-    setSelectedItemId('');
-    setItemQuantity('1');
-    setItemPrice('');
+    if (invoiceType === 'sale' && salesType === 'SERVICE') {
+      if (!serviceName) return;
+      setItems(prev => [...prev, {
+        id: Math.random().toString(),
+        inventoryItemId: 'SERVICE',
+        name: serviceName,
+        description: serviceDesc,
+        unit: serviceUnit,
+        quantity: qty,
+        unitPrice: price,
+        total: qty * price
+      }]);
+      setServiceName('');
+      setServiceDesc('');
+      setItemQuantity('1');
+      setItemPrice('');
+    } else {
+      if (!selectedItemId) return;
+      const invItem = inventory.find(i => i.id === selectedItemId);
+      if (!invItem) return;
+
+      const finalPrice = price || (invoiceType === 'sale' ? invItem.sellingPrice : invItem.costPrice);
+      
+      setItems(prev => [...prev, {
+        id: Math.random().toString(),
+        inventoryItemId: invItem.id,
+        name: invItem.name,
+        quantity: qty,
+        unitPrice: finalPrice,
+        total: qty * finalPrice
+      }]);
+
+      setSelectedItemId('');
+      setItemQuantity('1');
+      setItemPrice('');
+    }
   };
 
   const removeItem = (index: number) => {
@@ -91,8 +121,10 @@ export default function Sales() {
 
   const subTotal = items.reduce((sum, item) => sum + item.total, 0);
   const total = subTotal - (parseFloat(discount) || 0);
-  const remaining = total - (parseFloat(paidAmount) || 0);
-  const status = remaining <= 0 ? 'paid' : (parseFloat(paidAmount) > 0 ? 'partial' : 'unpaid');
+  // Calculate amounts based on payment type
+  const actualPaidAmount = paymentType === 'cash' ? total : (paymentType === 'deferred' ? 0 : (parseFloat(paidAmount) || 0));
+  const remaining = total - actualPaidAmount;
+  const status = remaining <= 0 ? 'paid' : (actualPaidAmount > 0 ? 'partial' : 'unpaid');
 
   const handleSave = async (isApproved: boolean) => {
     if (items.length === 0) return alert('يجب إضافة مادة واحدة على الأقل');
@@ -101,13 +133,15 @@ export default function Sales() {
     const invoiceData = {
       invoiceNumber,
       type: invoiceType,
+      invoiceType: invoiceType === 'sale' ? salesType : undefined,
       partyId,
       date,
       items,
       subTotal,
       discount: parseFloat(discount) || 0,
       total,
-      paidAmount: parseFloat(paidAmount) || 0,
+      paidAmount: actualPaidAmount,
+      paymentType,
       remainingAmount: remaining,
       status,
       isApproved,
@@ -144,10 +178,14 @@ export default function Sales() {
           <h2 className="page-title">المبيعات والمشتريات (الفواتير)</h2>
           <p className="page-subtitle">إنشاء فواتير بيع أو شراء واستعراض الحركات السابقة.</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => openModal('sale')} className="btn-primary">
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => openModal('sale', 'PRODUCT_SALE')} className="btn-primary">
             <Plus className="w-5 h-5" />
-            <span>فاتورة مبيعات جديدة</span>
+            <span>بيع بضاعة جديدة</span>
+          </button>
+          <button onClick={() => openModal('sale', 'SERVICE')} className="px-5 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-[16px] font-bold transition-all flex items-center gap-2">
+            <Plus className="w-5 h-5" />
+            <span>خدمة تطريز جديدة</span>
           </button>
           <button onClick={() => openModal('purchase')} className="btn-secondary">
             <Plus className="w-5 h-5" />
@@ -220,43 +258,49 @@ export default function Sales() {
                           </span>
                         )}
                       </td>
-                      <td data-label="إجراءات" className="px-2 py-3 text-center">
-                        {!inv.isApproved && (
-                          <>
-                            <button 
-                              onClick={async () => {
-                                if(confirm('هل أنت متأكد من اعتماد هذه الفاتورة؟ سيتم ترحيلها إلى الحسابات والمخزن.')) await approveInvoice(inv.id);
-                              }} 
-                              className="text-amber-500 hover:text-emerald-600 p-1.5 transition-colors mr-1 bg-amber-50 hover:bg-emerald-50 rounded-lg" 
-                              title="اعتماد الفاتورة وترحيلها"
-                            >
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                            <button 
-                              onClick={() => openEditModal(inv)}
-                              className="text-slate-400 hover:text-blue-600 p-1.5 transition-colors mr-2 bg-slate-50 hover:bg-blue-50 rounded-lg" 
-                              title="تعديل الفاتورة"
-                            >
-                              <Pencil className="w-5 h-5" />
-                            </button>
-                          </>
-                        )}
-                        <button 
-                          onClick={() => {
-                            const party = inv.type === 'sale' ? customers.find(c => c.id === inv.partyId) : suppliers.find(s => s.id === inv.partyId);
-                            setSelectedPartyName(party?.name || 'غير محدد');
-                            setSelectedInvoice(inv);
-                          }}
-                          className="text-slate-400 hover:text-brand-500 p-1.5 transition-colors mr-2 bg-slate-50 hover:bg-teal-50 rounded-lg" 
-                          title="عرض وطباعة الفاتورة"
-                        >
-                          <FileText className="w-5 h-5" />
-                        </button>
-                        <button onClick={async () => {
-                          if(confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) await deleteInvoice(inv.id);
-                        }} className="text-red-400 hover:text-red-600 p-1.5 transition-colors bg-red-50 hover:bg-red-100 rounded-lg" title="حذف الفاتورة">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                      <td data-label="الإجراءات" className="px-4 py-3">
+                        <div className="flex items-center justify-end sm:justify-center gap-2">
+                          {!inv.isApproved && (
+                            <>
+                              <button 
+                                onClick={async () => {
+                                  if(confirm('هل أنت متأكد من اعتماد هذه الفاتورة؟ سيتم ترحيلها إلى الحسابات والمخزن.')) await approveInvoice(inv.id);
+                                }} 
+                                className="flex items-center justify-center bg-amber-50 text-amber-500 hover:bg-emerald-50 hover:text-emerald-600 p-2 rounded-xl transition-colors shadow-sm" 
+                                title="اعتماد الفاتورة وترحيلها"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                              </button>
+                              <button 
+                                onClick={() => openEditModal(inv)}
+                                className="flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 p-2 rounded-xl transition-colors shadow-sm" 
+                                title="تعديل الفاتورة"
+                              >
+                                <Pencil className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
+                          <button 
+                            onClick={() => {
+                              const party = inv.type === 'sale' ? customers.find(c => c.id === inv.partyId) : suppliers.find(s => s.id === inv.partyId);
+                              setSelectedPartyName(party?.name || 'غير محدد');
+                              setSelectedInvoice(inv);
+                            }}
+                            className="flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-teal-50 hover:text-brand-500 p-2 rounded-xl transition-colors shadow-sm" 
+                            title="عرض وطباعة الفاتورة"
+                          >
+                            <FileText className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if(confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) await deleteInvoice(inv.id);
+                            }} 
+                            className="flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 p-2 rounded-xl transition-colors shadow-sm" 
+                            title="حذف الفاتورة"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -295,31 +339,68 @@ export default function Sales() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">{invoiceType === 'sale' ? 'العميل' : 'المورد'}</label>
-                  <select required value={partyId} onChange={e => setPartyId(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
-                    <option value="">اختر {invoiceType === 'sale' ? 'العميل' : 'المورد'}...</option>
-                    {invoiceType === 'sale' ? (
-                      customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
-                    ) : (
-                      suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
-                    )}
-                  </select>
+                  <div className="relative">
+                    <select required value={partyId} onChange={e => setPartyId(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                      <option value="">اختر {invoiceType === 'sale' ? 'العميل' : 'المورد'}...</option>
+                      {invoiceType === 'sale' ? (
+                        customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                      ) : (
+                        suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
+                      )}
+                    </select>
+                    {partyId && (() => {
+                      const party = invoiceType === 'sale' 
+                        ? customers.find(c => c.id === partyId) 
+                        : suppliers.find(s => s.id === partyId);
+                      if (party && party.balance !== 0) {
+                        return (
+                          <div className="absolute top-1/2 left-3 -translate-y-1/2 text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md pointer-events-none" dir="ltr">
+                            الرصيد السابق: {formatCurrency(party.balance)}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                 </div>
               </div>
 
               {/* Items Section */}
               <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
                 <div className="bg-slate-50/50 p-4 border-b border-slate-200 flex flex-wrap items-end gap-3">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="block text-xs font-bold text-slate-700 mb-2">المادة / الصنف</label>
-                    <select value={selectedItemId} onChange={e => {
-                        setSelectedItemId(e.target.value);
-                        const item = inventory.find(i => i.id === e.target.value);
-                        if (item) setItemPrice(invoiceType === 'sale' ? item.sellingPrice.toString() : item.costPrice.toString());
-                      }} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
-                      <option value="">اختر مادة...</option>
-                      {inventory.map(i => <option key={i.id} value={i.id}>{i.name} ({i.code})</option>)}
-                    </select>
-                  </div>
+                  {invoiceType === 'sale' && salesType === 'SERVICE' ? (
+                    <>
+                      <div className="flex-1 min-w-[150px]">
+                        <label className="block text-xs font-bold text-slate-700 mb-2">اسم الخدمة (مثل: نقشة وردة)</label>
+                        <input type="text" value={serviceName} onChange={e => setServiceName(e.target.value)} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                      </div>
+                      <div className="flex-1 min-w-[150px]">
+                        <label className="block text-xs font-bold text-slate-700 mb-2">وصف العمل (اختياري)</label>
+                        <input type="text" value={serviceDesc} onChange={e => setServiceDesc(e.target.value)} placeholder="تفاصيل إضافية..." className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                      </div>
+                      <div className="w-24">
+                        <label className="block text-xs font-bold text-slate-700 mb-2">الوحدة</label>
+                        <select value={serviceUnit} onChange={e => setServiceUnit(e.target.value)} className="w-full px-2 py-2 bg-white border border-slate-200 rounded-[12px]">
+                          <option value="وار">وار</option>
+                          <option value="قطعة">قطعة</option>
+                          <option value="متر">متر</option>
+                          <option value="خدمة">خدمة</option>
+                        </select>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex-1 min-w-[200px]">
+                      <label className="block text-xs font-bold text-slate-700 mb-2">المادة / الصنف</label>
+                      <select value={selectedItemId} onChange={e => {
+                          setSelectedItemId(e.target.value);
+                          const item = inventory.find(i => i.id === e.target.value);
+                          if (item) setItemPrice(invoiceType === 'sale' ? item.sellingPrice.toString() : item.costPrice.toString());
+                        }} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                        <option value="">اختر مادة...</option>
+                        {inventory.map(i => <option key={i.id} value={i.id}>{i.name} ({i.code}) - متوفر: {i.quantity}</option>)}
+                      </select>
+                    </div>
+                  )}
                   <div className="w-24">
                     <label className="block text-xs font-bold text-slate-700 mb-2">الكمية</label>
                     <input type="number" min="0.1" step="0.1" value={itemQuantity} onChange={e => setItemQuantity(e.target.value)} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
@@ -328,7 +409,7 @@ export default function Sales() {
                     <label className="block text-xs font-bold text-slate-700 mb-2">السعر (الإفرادي)</label>
                     <input type="number" step="0.01" value={itemPrice} onChange={e => setItemPrice(e.target.value)} className="w-full px-4 py-2 bg-white border border-slate-200 rounded-[12px] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
                   </div>
-                  <button type="button" onClick={handleAddItem} disabled={!selectedItemId} className="px-6 py-2 bg-brand-500/10 text-brand-500 hover:bg-brand-500/20 font-bold rounded-[12px] disabled:opacity-50 transition-colors">إضافة</button>
+                  <button type="button" onClick={handleAddItem} disabled={invoiceType === 'sale' && salesType === 'SERVICE' ? !serviceName : !selectedItemId} className="px-6 py-2 bg-brand-500/10 text-brand-500 hover:bg-brand-500/20 font-bold rounded-[12px] disabled:opacity-50 transition-colors">إضافة</button>
                 </div>
                 <div className="table-container">
 <table className="table-standard">
@@ -344,7 +425,10 @@ export default function Sales() {
                     <tbody className="divide-y divide-slate-100">
                       {items.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/50">
-                          <td data-label="المادة" className="px-4 py-3 font-bold text-slate-800">{item.name}</td>
+                          <td data-label="المادة" className="px-4 py-3 font-bold text-slate-800">
+                            <div>{item.name} {item.unit ? <span className="text-xs text-slate-400">({item.unit})</span> : ''}</div>
+                            {item.description && <div className="text-xs font-normal text-slate-500 mt-1">{item.description}</div>}
+                          </td>
                           <td data-label="الكمية" className="px-4 py-3 text-center">{item.quantity}</td>
                           <td data-label="السعر" className="px-4 py-3 text-slate-600" dir="ltr">{formatCurrency(item.unitPrice)}</td>
                           <td data-label="الإجمالي" className="px-4 py-3 font-bold text-brand-500" dir="ltr">{formatCurrency(item.total)}</td>
@@ -383,22 +467,30 @@ export default function Sales() {
                   </div>
                   
                   <div className="pt-4 flex justify-between items-center text-sm font-bold text-slate-700">
-                    <span>المبلغ المدفوع (مقبوض):</span>
-                    <input type="number" step="0.01" value={paidAmount} onChange={e => setPaidAmount(e.target.value)} className="w-32 px-3 py-2 border border-brand-500/30 bg-brand-500/5 rounded-[12px] text-left focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-brand-500 font-bold" dir="ltr" />
+                    <span>طريقة الدفع:</span>
+                    <select value={paymentType} onChange={e => setPaymentType(e.target.value as any)} className="w-32 px-3 py-2 bg-slate-50 border border-slate-200 rounded-[12px] focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                      <option value="cash">نقدي</option>
+                      <option value="deferred">آجل</option>
+                      <option value="partial">دفع جزئي</option>
+                    </select>
                   </div>
-                  <div className="flex justify-between items-center text-sm font-bold text-rose-600">
+                  <div className="pt-2 flex justify-between items-center text-sm font-bold text-slate-700">
+                    <span>المبلغ المدفوع:</span>
+                    <input type="number" step="0.01" value={paymentType === 'cash' ? total : (paymentType === 'deferred' ? 0 : paidAmount)} onChange={e => setPaidAmount(e.target.value)} disabled={paymentType !== 'partial'} className="w-32 px-3 py-2 border border-brand-500/30 bg-brand-500/5 rounded-[12px] text-left focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-brand-500 font-bold disabled:opacity-50 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-500" dir="ltr" />
+                  </div>
+                  <div className="pt-2 flex justify-between items-center text-sm font-bold text-rose-600">
                     <span>المتبقي (آجل):</span>
                     <span dir="ltr" className="font-black">{formatCurrency(remaining)}</span>
                   </div>
                 </div>
               </div>
             </form>
-            <div className="p-6 mt-auto border-t border-slate-100 flex justify-end gap-3 shrink-0 bg-slate-50/30">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 font-bold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-2xl transition-colors">إلغاء</button>
-              <button type="button" onClick={() => handleSave(false)} className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all">
+            <div className="p-4 sm:p-6 mt-auto border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-3 shrink-0 bg-slate-50/30">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-3 font-bold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-2xl transition-colors order-3 sm:order-1">إلغاء</button>
+              <button type="button" onClick={() => handleSave(false)} className="w-full sm:w-auto justify-center px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all order-2">
                 <span>حفظ كمسودة</span>
               </button>
-              <button type="button" onClick={() => handleSave(true)} className="px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl flex items-center gap-2 shadow-lg shadow-brand-500/20 transition-all">
+              <button type="button" onClick={() => handleSave(true)} className="w-full sm:w-auto justify-center px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl flex items-center gap-2 shadow-lg shadow-brand-500/20 transition-all order-1 sm:order-3">
                 <Check className="w-5 h-5" />
                 <span>حفظ واعتماد</span>
               </button>

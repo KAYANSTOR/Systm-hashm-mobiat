@@ -35,6 +35,7 @@ export interface InventoryItem {
   quantity: number;
   costPrice: number;
   sellingPrice: number;
+  minQuantity?: number;
   color?: string;
   supplierId?: string;
   lastUpdated: string;
@@ -42,9 +43,11 @@ export interface InventoryItem {
 
 export interface InvoiceItem {
   id: string;
-  inventoryItemId: string;
-  name: string;
+  inventoryItemId?: string; // اختياري للخدمات
+  name: string; // اسم المنتج أو الخدمة
+  description?: string; // وصف الخدمة
   quantity: number;
+  unit?: string; // وحدة القياس للخدمات (وار، متر، قطعة...)
   unitPrice: number;
   total: number;
 }
@@ -53,6 +56,8 @@ export interface Invoice {
   id: string;
   invoiceNumber: string;
   type: 'sale' | 'purchase';
+  paymentType?: 'cash' | 'deferred' | 'partial';
+  invoiceType?: 'PRODUCT_SALE' | 'SERVICE'; // التمييز بين بيع البضاعة وخدمة التطريز
   partyId: string; // CustomerId for sale, SupplierId for purchase
   date: string;
   items: InvoiceItem[];
@@ -64,21 +69,57 @@ export interface Invoice {
   status: 'paid' | 'partial' | 'unpaid';
   isApproved?: boolean;
   createdBy: string;
+  signature?: string;
   notes?: string;
 }
 
 export interface Voucher {
   id: string;
   voucherNumber: string;
-  type: 'receipt' | 'payment' | 'deferred'; // سند قبض، سند صرف، آجل
+  type: 'receipt' | 'payment' | 'deferred' | 'journal'; // سند قبض، سند صرف، آجل
   partyType: 'customer' | 'supplier' | 'other';
   partyId?: string;
   amount: number;
   date: string;
-  paymentMethod: 'cash' | 'bank' | 'check';
+  paymentMethod: 'cash' | 'remittance' | 'jeeb' | 'e_wallet';
   referenceNumber?: string;
   description: string;
   createdBy: string;
+  signature?: string;
+}
+
+
+export interface Transaction {
+  id: string;
+  date: string;
+  documentId: string;
+  documentNumber: string;
+  documentType: 'invoice' | 'voucher' | 'expense';
+  
+  partyId?: string;
+  partyType?: 'customer' | 'supplier';
+  
+  debit: number;
+  credit: number;
+  
+  cashIn: number;
+  cashOut: number;
+  
+  paymentMethod?: 'cash' | 'remittance' | 'jeeb' | 'e_wallet';
+  description: string;
+  createdAt: any;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  type: 'work' | 'personal';
+  description: string;
+  amount: number;
+  paymentMethod: 'cash' | 'remittance' | 'jeeb' | 'e_wallet' | string;
+  reference?: string;
+  createdAt: any;
 }
 
 export interface StoreState {
@@ -87,4 +128,6 @@ export interface StoreState {
   inventory: InventoryItem[];
   invoices: Invoice[];
   vouchers: Voucher[];
+  transactions: Transaction[];
+  expenses: Expense[];
 }

@@ -15,14 +15,20 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
     const invDate = new Date(i.date);
     return invDate.toDateString() === today.toDateString();
   });
-  const todaySales = todaySalesInvoices.reduce((sum, i) => sum + i.total, 0);
+  
+  const todaySales = todaySalesInvoices.filter(i => i.invoiceType !== 'SERVICE').reduce((sum, i) => sum + i.total, 0);
+  const todayServices = todaySalesInvoices.filter(i => i.invoiceType === 'SERVICE').reduce((sum, i) => sum + i.total, 0);
+
 
   const monthSalesInvoices = invoices.filter(i => {
     if (i.type !== 'sale') return false;
     const invDate = new Date(i.date);
     return invDate.getMonth() === today.getMonth() && invDate.getFullYear() === today.getFullYear();
   });
-  const monthSales = monthSalesInvoices.reduce((sum, i) => sum + i.total, 0);
+  
+  const monthSales = monthSalesInvoices.filter(i => i.invoiceType !== 'SERVICE').reduce((sum, i) => sum + i.total, 0);
+  const monthServices = monthSalesInvoices.filter(i => i.invoiceType === 'SERVICE').reduce((sum, i) => sum + i.total, 0);
+
 
   // Date formatting for the top header
   const dateString = today.toLocaleDateString('ar-YE', { weekday: 'long', day: 'numeric', month: 'long' });

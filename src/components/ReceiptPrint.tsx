@@ -1,7 +1,6 @@
 import React, { useRef } from "react";
 import "./ReceiptPrint.css";
-import * as htmlToImage from 'html-to-image';
-import { Share2, Printer, X } from 'lucide-react';
+import { Share2, Printer, X, Download } from 'lucide-react';
 
 export interface ReceiptData {
   receiptNumber: string;
@@ -17,6 +16,7 @@ export interface ReceiptData {
   receiver: string;
   cashier: string;
   type: 'receipt' | 'payment' | 'deferred';
+  signature?: string;
 }
 
 interface ReceiptPrintProps {
@@ -25,69 +25,77 @@ interface ReceiptPrintProps {
 }
 
 export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
-  const [cachedBlob, setCachedBlob] = React.useState<Blob | null>(null);
-  const [isGenerating, setIsGenerating] = React.useState(true);
+  
+  const [isGenerating, setIsGenerating] = React.useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    const generateBlob = async () => {
-      if (!printRef.current) return;
-      try {
-        const filter = (node: HTMLElement) => {
-          if (node.tagName === 'LINK' && (node as HTMLLinkElement).href.includes('fonts.googleapis')) return false;
-          return true;
-        };
-        await new Promise(r => setTimeout(r, 800));
-        const blob = await htmlToImage.toBlob(printRef.current, { quality: 0.9, pixelRatio: 2, backgroundColor: '#ffffff', filter: filter as any });
-        setCachedBlob(blob);
-      } catch (err) {
-        console.error('Pre-generation error:', err);
-      } finally {
-        setIsGenerating(false);
-      }
-    };
-    generateBlob();
-  }, []);
-
-  const handlePrint = () => {
-    window.print();
+  const fetchPdfBlob = async () => {
+    if (!printRef.current) return null;
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(el => el.outerHTML)
+      .join('\n');
+    const html = printRef.current.outerHTML;
+    
+    const response = await fetch('/api/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, styles, orientation: 'receipt' }) // receipt uses 80mm width
+    });
+    
+    if (!response.ok) throw new Error('PDF Generation Failed');
+    return await response.blob();
   };
 
-  const handleShareWhatsApp = async () => {
-    if (!printRef.current) return;
-    try {
-      const filter = (node: HTMLElement) => {
-        if (node.tagName === 'LINK' && (node as HTMLLinkElement).href.includes('fonts.googleapis')) {
-          return false;
-        }
-        return true;
-      };
+  
 
-      const imageBlob = await htmlToImage.toBlob(printRef.current, { 
-        quality: 0.9, 
-        pixelRatio: 2, 
-        backgroundColor: '#ffffff',
-        filter: filter as any
-      });
-      
-      if (imageBlob && navigator.canShare && navigator.canShare({ files: [new File([imageBlob], 'test.png', { type: 'image/png' })] })) {
-        const file = new File([imageBlob], `سند_${data.receiptNumber}.png`, { type: 'image/png' });
-        await navigator.share({
-          title: `سند ${data.type === 'receipt' ? 'قبض' : data.type === 'payment' ? 'صرف' : 'آجل'}`,
-          text: `سند رقم: ${data.receiptNumber}\nالمبلغ: ${data.amount}`,
-          files: [file],
-        });
+  const handlePrint = () => { window.print(); };
+
+  
+  const handleShareWhatsApp = async () => {
+    try {
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const file = new File([blob], 'مستند.pdf', { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: 'مستند', files: [file] });
       } else {
-        const text = `*معامل هاشم الأحمدي للتطريز الإلكتروني*\n\nسند ${data.type === 'receipt' ? 'قبض' : data.type === 'payment' ? 'صرف' : 'آجل'}\nرقم: ${data.receiptNumber}\nالتاريخ: ${data.date}\n\nالطرف: ${data.receivedFrom}\nالمبلغ: ${data.amount}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'مستند.pdf';
+        link.click();
+        URL.revokeObjectURL(url);
       }
-    } catch (error: any) {
-      console.error('Error sharing:', error);
-      if (error.name === 'AbortError') return; // User canceled the share
-      const text = `*معامل هاشم الأحمدي للتطريز الإلكتروني*\n\nسند ${data.type === 'receipt' ? 'قبض' : data.type === 'payment' ? 'صرف' : 'آجل'}\nرقم: ${data.receiptNumber}\nالتاريخ: ${data.date}\n\nالطرف: ${data.receivedFrom}\nالمبلغ: ${data.amount}`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    } catch (e) {
+      console.error(e);
+      alert('خطأ في المشاركة');
+    } finally {
+      setIsGenerating(false);
     }
   };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `فاتورة_${data.receiptNumber}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء إنشاء الـ PDF');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  
+
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 z-[100] flex flex-col items-center justify-center p-2 sm:p-4 no-print overflow-y-auto" dir="rtl">
@@ -99,6 +107,9 @@ export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
           <div className="flex gap-2">
             <button onClick={handleShareWhatsApp} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-bold transition-colors disabled:opacity-50">
               <Share2 className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">واتساب</span>}
+            </button>
+            <button onClick={handleDownloadPDF} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold transition-colors disabled:opacity-50">
+              <Download className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">تنزيل PDF</span>}
             </button>
             <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-bold transition-colors">
               <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة / PDF</span>
@@ -270,9 +281,11 @@ export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
                   <div className="receipt-signature-title">
                     المستلم
                   </div>
-
-                  <div className="receipt-signature-line">
-                    {data.receiver}
+                  <div className="receipt-signature-line" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {data.signature ? (
+                       <img src={data.signature} alt="Signature" style={{ maxHeight: '40px', mixBlendMode: 'multiply', marginBottom: '4px' }} />
+                    ) : null}
+                    <span>{data.receiver}</span>
                   </div>
                 </div>
 

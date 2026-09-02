@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency } from '../lib/utils';
-import { Search, Plus, Filter, Scissors, Edit, Trash2, X } from 'lucide-react';
+import { Search, Plus, Filter, Scissors, Edit, Trash2, X, AlertTriangle } from 'lucide-react';
 import { InventoryItem } from '../types';
 
 export default function Inventory() {
@@ -20,6 +20,7 @@ export default function Inventory() {
   const [costPrice, setCostPrice] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [color, setColor] = useState('');
+  const [minQuantity, setMinQuantity] = useState('0');
 
   const filteredInventory = inventory.filter(item => 
     item.name.includes(searchTerm) || item.code.includes(searchTerm)
@@ -35,6 +36,7 @@ export default function Inventory() {
       setQuantity(item.quantity.toString());
       setCostPrice(item.costPrice.toString());
       setSellingPrice(item.sellingPrice.toString());
+      setMinQuantity((item.minQuantity || 0).toString());
       setColor(item.color || '');
     } else {
       setEditingId(null);
@@ -45,6 +47,7 @@ export default function Inventory() {
       setQuantity('1');
       setCostPrice('0');
       setSellingPrice('0');
+      setMinQuantity('0');
       setColor('');
     }
     setIsModalOpen(true);
@@ -55,6 +58,7 @@ export default function Inventory() {
     const data = {
       code, name, category, unit, 
       quantity: parseFloat(quantity) || 0,
+      minQuantity: parseFloat(minQuantity) || 0,
       costPrice: parseFloat(costPrice) || 0,
       sellingPrice: parseFloat(sellingPrice) || 0,
       color,
@@ -135,11 +139,16 @@ export default function Inventory() {
                     </span>
                   </td>
                   <td data-label="الكمية" className="px-2 py-3 text-center">
-                    <div className="flex items-center justify-end gap-2"><span className="font-bold text-lg text-slate-800">{item.quantity}</span>
-                    <span className="text-xs text-slate-500 mr-1">
-                      {item.unit === 'roll' ? 'طاقة/رول' :
-                        item.unit === 'meter' ? 'متر' : 'قطعة'}
-                    </span></div>
+                    <div className="flex items-center justify-end gap-2">
+                      {(item.quantity <= (item.minQuantity || 0)) && (
+                         <AlertTriangle className="w-4 h-4 text-rose-500" title="تنبيه: الكمية وصلت للحد الأدنى" />
+                      )}
+                      <span className={`font-bold text-lg ${item.quantity <= (item.minQuantity || 0) ? 'text-rose-600' : 'text-slate-800'}`}>{item.quantity}</span>
+                      <span className="text-xs text-slate-500 mr-1">
+                        {item.unit === 'roll' ? 'طاقة/رول' :
+                          item.unit === 'meter' ? 'متر' : 'قطعة'}
+                      </span>
+                    </div>
                   </td>
                   <td data-label="سعر التكلفة" className="px-2 py-3 font-medium text-slate-600">{formatCurrency(item.costPrice)}</td>
                   <td data-label="سعر البيع" className="px-2 py-3 font-bold text-emerald-600">{formatCurrency(item.sellingPrice)}</td>
@@ -206,6 +215,10 @@ export default function Inventory() {
                 <div>
                   <label className="label">اللون</label>
                   <input type="text" value={color} onChange={e => setColor(e.target.value)} className="input-field" />
+                </div>
+                <div>
+                  <label className="label">الحد الأدنى للطلب</label>
+                  <input type="number" step="0.01" value={minQuantity} onChange={e => setMinQuantity(e.target.value)} className="input-field" />
                 </div>
                 <div>
                   <label className="label">سعر التكلفة</label>

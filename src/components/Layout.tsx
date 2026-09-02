@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Home, ShoppingBag, Boxes, Users, PieChart, Receipt, Plus, Download, Calculator, UserPlus, Bell, ArrowRight } from 'lucide-react';
+import { Home, ShoppingBag, Boxes, Users, PieChart, Receipt, Plus, Download, Calculator, UserPlus, Bell, ArrowRight, Wallet, CreditCard } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { User } from 'firebase/auth';
 import { useStore } from '../context/StoreContext';
 
-export type TabType = 'dashboard' | 'sales' | 'inventory' | 'vouchers' | 'parties' | 'reports';
+export type TabType = 'dashboard' | 'sales' | 'inventory' | 'vouchers' | 'parties' | 'reports' | 'cashbox' | 'expenses';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -64,6 +64,8 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
     { id: 'dashboard', label: 'الرئيسية', icon: Home },
     { id: 'reports', label: 'التقارير', icon: PieChart },
     { id: 'vouchers', label: 'السندات', icon: Receipt },
+    { id: 'cashbox', label: 'الصندوق', icon: Wallet },
+    { id: 'expenses', label: 'المصروفات', icon: CreditCard },
     { id: 'parties', label: 'العملاء', icon: Users },
     { id: 'inventory', label: 'المخزن', icon: Boxes },
     { id: 'sales', label: 'المبيعات', icon: ShoppingBag },
@@ -75,7 +77,7 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden " dir="rtl">
+    <div className="flex flex-col h-[100dvh] overflow-hidden" dir="rtl">
       {/* Top Header */}
       <header className="h-20 px-5 flex items-center justify-between no-print z-10 shrink-0">
         <div className="flex items-center gap-3">
@@ -145,8 +147,8 @@ export default function Layout({ children, activeTab, setActiveTab, onSignOut, u
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-auto p-4 pb-28">
-        <div className="max-w-5xl mx-auto h-full relative">
+      <main className="flex-1 overflow-auto p-4 pb-36">
+        <div className="max-w-5xl mx-auto min-h-full relative">
           {children}
 
           {/* Quick Actions Menu */}

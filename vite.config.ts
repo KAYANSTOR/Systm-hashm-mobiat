@@ -13,9 +13,9 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/icon.svg'],
         manifest: {
-          name: 'تطبيق الإدارة',
-          short_name: 'الإدارة',
-          description: 'نظام إدارة المبيعات والسندات والمخزون',
+          name: 'معامل هاشم الأحمدي للتطريز',
+          short_name: 'هاشم الأحمدي',
+          description: 'نظام إدارة المبيعات، المشتريات، المخازن، حسابات العملاء والموردين',
           theme_color: '#208480',
           background_color: '#f8fafc',
           display: 'standalone',

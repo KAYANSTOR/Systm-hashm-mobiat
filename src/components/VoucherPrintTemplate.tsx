@@ -1,8 +1,7 @@
 import React, { useRef } from 'react';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { Voucher } from '../types';
-import * as htmlToImage from 'html-to-image';
-import { Share2, Printer, X, Download } from 'lucide-react';
+import { Share2, Printer, X, Download, Scissors } from 'lucide-react';
 
 interface VoucherPrintTemplateProps {
   voucher: Voucher;
@@ -11,57 +10,77 @@ interface VoucherPrintTemplateProps {
 }
 
 export default function VoucherPrintTemplate({ voucher, partyName, onClose }: VoucherPrintTemplateProps) {
-  const [cachedBlob, setCachedBlob] = React.useState<Blob | null>(null);
-  const [isGenerating, setIsGenerating] = React.useState(true);
+  
+  const [isGenerating, setIsGenerating] = React.useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    const generateBlob = async () => {
-      if (!printRef.current) return;
-      try {
-        const filter = (node: HTMLElement) => {
-          if (node.tagName === 'LINK' && (node as HTMLLinkElement).href.includes('fonts.googleapis')) return false;
-          return true;
-        };
-        await new Promise(r => setTimeout(r, 800));
-        const blob = await htmlToImage.toBlob(printRef.current, { quality: 0.9, pixelRatio: 2, backgroundColor: '#ffffff', filter: filter as any });
-        setCachedBlob(blob);
-      } catch (err) {
-        console.error('Pre-generation error:', err);
-      } finally {
-        setIsGenerating(false);
-      }
-    };
-    generateBlob();
-  }, [voucher, partyName]);
-
-  const handlePrint = () => {
-    window.print();
+  const fetchPdfBlob = async () => {
+    if (!printRef.current) return null;
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(el => el.outerHTML)
+      .join('\n');
+    const html = printRef.current.outerHTML;
+    
+    const response = await fetch('/api/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, styles, orientation: 'landscape' })
+    });
+    
+    if (!response.ok) throw new Error('PDF Generation Failed');
+    return await response.blob();
   };
 
+  
+
+  const handlePrint = () => { window.print(); };
+
+  
   const handleShareWhatsApp = async () => {
-    if (!printRef.current) return;
     try {
-      const imageBlob = await htmlToImage.toBlob(printRef.current, { quality: 0.9, pixelRatio: 2, backgroundColor: '#ffffff' });
-      
-      if (imageBlob && navigator.canShare && navigator.canShare({ files: [new File([imageBlob], 'test.png', { type: 'image/png' })] })) {
-        const file = new File([imageBlob], `سند_${voucher.voucherNumber}.png`, { type: 'image/png' });
-        await navigator.share({
-          title: 'سند ' + (voucher.type === 'receipt' ? 'قبض' : 'صرف'),
-          text: `تفاصيل السند رقم: ${voucher.voucherNumber}\nالمبلغ: ${formatCurrency(voucher.amount)}`,
-          files: [file],
-        });
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const file = new File([blob], 'مستند.pdf', { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: 'مستند', files: [file] });
       } else {
-        // Fallback to simple text sharing
-        const text = `*معامل هاشم الأحمدي للتطريز الإلكتروني*\n\nسند ${voucher.type === 'receipt' ? 'قبض' : 'صرف'}\nرقم: ${voucher.voucherNumber}\nالتاريخ: ${formatDate(voucher.date)}\n\nالطرف: ${partyName}\nالمبلغ: ${formatCurrency(voucher.amount)}\nالبيان: ${voucher.description}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'مستند.pdf';
+        link.click();
+        URL.revokeObjectURL(url);
       }
-    } catch (error) {
-      console.error('Error sharing:', error);
-      const text = `*معامل هاشم الأحمدي للتطريز الإلكتروني*\n\nسند ${voucher.type === 'receipt' ? 'قبض' : 'صرف'}\nرقم: ${voucher.voucherNumber}\nالتاريخ: ${formatDate(voucher.date)}\n\nالطرف: ${partyName}\nالمبلغ: ${formatCurrency(voucher.amount)}\nالبيان: ${voucher.description}`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    } catch (e) {
+      console.error(e);
+      alert('خطأ في المشاركة');
+    } finally {
+      setIsGenerating(false);
     }
   };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `سند_${voucher.voucherNumber}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء إنشاء الـ PDF');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  
+
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 z-[100] flex flex-col items-center justify-center p-2 sm:p-4 no-print overflow-y-auto">
@@ -72,6 +91,9 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
           <div className="flex gap-2">
             <button onClick={handleShareWhatsApp} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg font-bold transition-colors disabled:opacity-50">
               <Share2 className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">واتساب</span>}
+            </button>
+            <button onClick={handleDownloadPDF} disabled={isGenerating} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-bold transition-colors disabled:opacity-50">
+              <Download className="w-4 h-4" /> {isGenerating ? <span className="hidden sm:inline text-xs">جاري التجهيز...</span> : <span className="hidden sm:inline">تنزيل PDF</span>}
             </button>
             <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg font-bold transition-colors">
               <Printer className="w-4 h-4" /> <span className="hidden sm:inline">طباعة / PDF</span>
@@ -96,13 +118,12 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
                   <h2 className="font-bold text-lg text-slate-700 mb-2">صنعاء - شارع الزبيري - مقابل وزارة الدفاع</h2>
                   <p className="font-bold text-lg" dir="ltr">770 447 441 - 730 447 441</p>
                 </div>
-                <div className="w-40 ml-4 shrink-0 flex flex-col items-center">
-                   {/* Mimicking logo with CSS */}
-                   <div className="text-[#199b9e] font-extrabold text-5xl leading-none relative">
-                     <span className="absolute -top-4 right-0 text-sm">الأحمدي</span>
-                     هاشم
+                <div className="w-40 ml-4 shrink-0 flex flex-col items-center justify-center">
+                   <div className="w-20 h-20 bg-[#199b9e] text-white rounded-full flex items-center justify-center mb-2 shadow-sm border-4 border-teal-100">
+                     <Scissors className="w-10 h-10" />
                    </div>
-                   <div className="text-[#199b9e] font-bold text-sm mt-1 whitespace-nowrap">للتطريز الإلكتروني</div>
+                   <div className="text-[#199b9e] font-black text-lg leading-none tracking-tight">معامل الأحمدي</div>
+                   <div className="text-slate-500 font-bold text-xs mt-1">للتطريز الإلكتروني</div>
                 </div>
               </div>
 
@@ -114,7 +135,7 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
                 
                 <div className="flex-1 bg-[#199b9e] flex items-center justify-center relative transform skew-x-[-20deg] mx-4 border-l-4 border-r-4 border-white shadow-[0_0_0_2px_#199b9e]">
                    <h2 className="text-white font-black text-2xl transform skew-x-[20deg] px-8 py-1 tracking-wide">
-                     سند {voucher.type === 'receipt' ? 'قبض' : voucher.type === 'payment' ? 'صرف' : 'آجل'}
+                     سند {voucher.type === 'receipt' ? 'قبض' : voucher.type === 'payment' ? 'صرف' : voucher.type === 'journal' ? 'قيد' : 'آجل'}
                    </h2>
                 </div>
 
@@ -127,7 +148,7 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
               <div className="space-y-6 text-lg font-bold text-slate-900 leading-loose flex-1">
                 
                 <div className="flex items-end gap-2">
-                  <span className="shrink-0">{voucher.type === 'receipt' ? 'استلمت من الأخ:' : 'يصرف للأخ:'}</span>
+                  <span className="shrink-0">{voucher.type === 'receipt' ? 'استلمت من الأخ:' : voucher.type === 'payment' ? 'يصرف للأخ:' : 'الطرف:'}</span>
                   <span className="flex-1 border-b-2 border-dotted border-slate-400 pb-1 px-4 text-center text-[#199b9e]">{partyName}</span>
                   <span className="shrink-0">المحترم</span>
                 </div>
@@ -141,12 +162,12 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
                 <div className="flex items-end gap-2 text-sm sm:text-lg">
                   <span className="shrink-0">نقداً / حوالة رقم:</span>
                   <span className="w-32 sm:w-48 border-b-2 border-dotted border-slate-400 pb-1 px-2 text-center text-[#199b9e]">
-                    {voucher.paymentMethod === 'bank' ? 'حوالة بنكية' : voucher.paymentMethod === 'check' ? 'شيك' : 'نقداً'}
+                    {voucher.paymentMethod === 'cash' ? 'نقداً' : voucher.paymentMethod === 'remittance' ? 'حوالة' : voucher.paymentMethod === 'jeeb' ? 'جيب' : 'محفظة إلكترونية'}
                   </span>
                   
                   <span className="shrink-0">عبر شبكة:</span>
                   <span className="flex-1 border-b-2 border-dotted border-slate-400 pb-1 px-2 text-center text-[#199b9e]">
-                    {voucher.paymentMethod !== 'cash' ? 'تحويل' : 'صندوق المعمل'}
+                    {voucher.paymentMethod !== 'cash' ? 'حوالة / محفظة' : 'صندوق المعمل'}
                   </span>
                   
                   <span className="shrink-0">بتاريخ:</span>
@@ -161,28 +182,37 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
 
               {/* Signatures */}
               <div className="flex justify-between mt-12 px-12 font-bold text-lg">
-                <div className="text-center w-40">
-                  <div className="mb-8">المستلم</div>
+                <div className="text-center w-40 relative">
+                  <div className="mb-1">المستلم</div>
+                  <div className="h-12 flex items-end justify-center mb-1">
+                    {voucher.signature ? (
+                      <img src={voucher.signature} alt="توقيع المستلم" className="max-h-full max-w-full mix-blend-multiply" />
+                    ) : null}
+                  </div>
                   <div className="border-t-2 border-dotted border-slate-400 pt-2"></div>
                 </div>
                 <div className="text-center w-40">
-                  <div className="mb-8">امين الصندوق</div>
+                  <div className="mb-1">امين الصندوق</div>
+                  <div className="h-12 flex items-end justify-center mb-1"></div>
                   <div className="border-t-2 border-dotted border-slate-400 pt-2"></div>
                 </div>
+              </div>
+
+              
+              <div className="absolute bottom-4 left-6 text-xs text-slate-400 font-mono" dir="ltr">
+                Printed: {new Date().toLocaleString('en-GB')}
               </div>
 
             </div>
           </div>
         </div>
       </div>
-      
+
       {/* Global Print Styles Injection */}
       <style dangerouslySetInnerHTML={{__html: `
+        @page { size: A5 landscape; margin: 0; }
+        @page { size: A5 landscape; margin: 0; }
         @media print {
-          @page {
-            size: A5 landscape;
-            margin: 0;
-          }
           body * { visibility: hidden; }
           .print-section, .print-section * { visibility: visible; }
           .print-section {

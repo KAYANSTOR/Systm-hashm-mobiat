@@ -21,38 +21,50 @@ export default function Reports() {
     window.print();
   };
 
-  const shareReportPDF = async () => {
+  const shareReportPDF = async (action: 'share' | 'download' = 'share') => {
     if (!reportRef.current) return;
     try {
-      const dataUrl = await htmlToImage.toJpeg(reportRef.current, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' });
+      const filter = (node: HTMLElement) => {
+        if (node.tagName === 'LINK' && (node as HTMLLinkElement).href.includes('fonts.googleapis')) return false;
+        return true;
+      };
       
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
+      const dataUrl = await htmlToImage.toJpeg(reportRef.current, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff', filter: filter as any });
       
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const imgProps = pdf.getImageProperties(dataUrl);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
       
       pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      const pdfBlob = pdf.output('blob');
       const filename = `تقرير_${reportType === 'sales' ? 'المبيعات' : 'العملاء'}_${new Date().getTime()}.pdf`;
       
+      if (action === 'download') {
+        pdf.save(filename);
+        return;
+      }
+
+      const pdfBlob = pdf.output('blob');
+      
       if (navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], 'test.pdf', { type: 'application/pdf' })] })) {
-        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-        await navigator.share({
-          title: 'تقرير معامل هاشم الأحمدي',
-          text: `تقرير ${reportType === 'sales' ? 'المبيعات' : 'العملاء'}`,
-          files: [file],
-        });
+        try {
+           const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+           await navigator.share({
+             title: 'تقرير معامل هاشم الأحمدي',
+             text: `تقرير ${reportType === 'sales' ? 'المبيعات' : 'العملاء'}`,
+             files: [file],
+           });
+        } catch(e: any) {
+           if (e.name !== 'AbortError') {
+             pdf.save(filename);
+           }
+        }
       } else {
         pdf.save(filename);
       }
     } catch (error) {
       console.error('Error sharing PDF:', error);
-      alert('تعذر إنشاء أو مشاركة ملف PDF. يمكنك استخدام زر الطباعة وحفظ التقرير كـ PDF.');
+      alert('تعذرت العملية. حاول الطباعة بدلاً من ذلك.');
     }
   };
 
@@ -83,8 +95,13 @@ export default function Reports() {
       acc.total += inv.total;
       acc.paid += inv.paidAmount;
       acc.remaining += inv.remainingAmount;
+      if (inv.invoiceType === 'SERVICE') {
+        acc.servicesTotal += inv.total;
+      } else {
+        acc.productsTotal += inv.total;
+      }
       return acc;
-    }, { total: 0, paid: 0, remaining: 0 });
+    }, { total: 0, paid: 0, remaining: 0, productsTotal: 0, servicesTotal: 0 });
   }, [filteredSalesInvoices]);
 
   const getItemsSummary = (items: any[]) => {
@@ -102,9 +119,13 @@ export default function Reports() {
           <p className="page-subtitle">استخراج وطباعة تقارير المبيعات وحسابات العملاء.</p>
         </div>
         <div className="flex gap-3">
-          <button onClick={shareReportPDF} className="btn-primary">
+          <button onClick={() => shareReportPDF("share")} className="btn-primary">
             <Share2 className="w-5 h-5" />
             <span>مشاركة PDF</span>
+          </button>
+          <button onClick={() => shareReportPDF('download')} className="btn-primary bg-blue-600 hover:bg-blue-700">
+            <Download className="w-5 h-5" />
+            <span>تنزيل PDF</span>
           </button>
           <button onClick={printReport} className="btn-secondary">
             <Printer className="w-5 h-5" />
@@ -240,6 +261,7 @@ export default function Reports() {
                     <th className="px-3 py-3 font-bold rounded-tr-lg">رقم الفاتورة</th>
                     <th className="px-3 py-3 font-bold">التاريخ</th>
                     <th className="px-3 py-3 font-bold">العميل</th>
+<th className="px-3 py-3 font-bold text-center">نوع العملية</th>
                     <th className="px-3 py-3 font-bold">الأصناف/الخدمات</th>
                     <th className="px-3 py-3 font-bold text-center">الكمية</th>
                     <th className="px-3 py-3 font-bold">الإجمالي</th>
@@ -279,10 +301,14 @@ export default function Reports() {
             
             {/* Totals Summary Card */}
             {filteredSalesInvoices.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col print:border-slate-300">
-                  <span className="text-slate-500 text-sm font-bold mb-1">إجمالي المبيعات</span>
-                  <span className="text-2xl font-black text-slate-900" dir="ltr">{formatCurrency(salesTotals.total)}</span>
+                  <span className="text-slate-500 text-sm font-bold mb-1">إجمالي المبيعات (بضاعة)</span>
+                  <span className="text-2xl font-black text-slate-900" dir="ltr">{formatCurrency(salesTotals.productsTotal)}</span>
+                </div>
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex flex-col print:border-purple-300">
+                  <span className="text-purple-700 text-sm font-bold mb-1">إجمالي خدمات التطريز</span>
+                  <span className="text-2xl font-black text-purple-900" dir="ltr">{formatCurrency(salesTotals.servicesTotal)}</span>
                 </div>
                 <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex flex-col print:border-emerald-200">
                   <span className="text-emerald-700 text-sm font-bold mb-1">إجمالي المقبوضات (المدفوع)</span>

@@ -2,43 +2,70 @@ import React, { useState } from 'react';
 import { auth } from '../firebase';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate } from '../lib/utils';
-import { Plus, CheckCircle2, Search, ArrowDownRight, ArrowUpRight, Clock, X, Trash2, Printer } from 'lucide-react';
+import { Plus, CheckCircle2, Search, ArrowDownRight, ArrowUpRight, Clock, X, Trash2, Printer, Eye } from 'lucide-react';
 import { Voucher } from '../types';
 import ReceiptPrint, { ReceiptData } from '../components/ReceiptPrint';
+import VoucherPrintTemplate from '../components/VoucherPrintTemplate';
+import SignaturePad from '../components/SignaturePad';
 
 export default function Vouchers() {
   const { vouchers, customers, suppliers, addVoucher, deleteVoucher } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'receipt' | 'payment' | 'deferred'>('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'receipt' | 'payment' | 'deferred' | 'journal'>('all');
+
+  
+  const getPartyName = (v: Voucher) => {
+    if (v.partyType === 'customer') return customers.find(c => c.id === v.partyId)?.name || '-';
+    if (v.partyType === 'supplier') return suppliers.find(s => s.id === v.partyId)?.name || '-';
+    return '-';
+  };
 
   const filteredVouchers = vouchers.filter(v => activeFilter === 'all' || v.type === activeFilter)
-    .filter(v => v.voucherNumber.includes(searchTerm) || v.description.includes(searchTerm));
+    .filter(v => {
+      const matchSearch = v.voucherNumber.includes(searchTerm) || 
+                          v.description.includes(searchTerm) ||
+                          getPartyName(v).includes(searchTerm) ||
+                          v.amount.toString().includes(searchTerm) ||
+                          v.date.includes(searchTerm);
+      
+      const matchStart = startDate ? v.date >= startDate : true;
+      const matchEnd = endDate ? v.date <= endDate : true;
+      
+      return matchSearch && matchStart && matchEnd;
+    });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [printingA5Voucher, setPrintingA5Voucher] = useState<{voucher: Voucher, partyName: string} | null>(null);
   const [printingVoucher, setPrintingVoucher] = useState<{voucher: Voucher, partyName: string} | null>(null);
   
   // Form State
   const [voucherNumber, setVoucherNumber] = useState('');
-  const [type, setType] = useState<'receipt' | 'payment' | 'deferred'>('receipt');
+  const [type, setType] = useState<'receipt' | 'payment' | 'deferred' | 'journal'>('receipt');
   const [partyType, setPartyType] = useState<'customer' | 'supplier' | 'other'>('customer');
   const [partyId, setPartyId] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank' | 'check'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'remittance' | 'jeeb' | 'e_wallet'>('cash');
   const [description, setDescription] = useState('');
+  const [signature, setSignature] = useState<string | null>(null);
 
-  const openModal = (vType: 'receipt' | 'payment') => {
-    const nextId = vouchers.length > 0 
-      ? Math.max(...vouchers.map(v => parseInt(v.voucherNumber.replace(/\D/g, '')) || 0)) + 1 
+  const openModal = (vType: 'receipt' | 'payment' | 'journal') => {
+    const typeVouchers = vouchers.filter(v => v.type === vType);
+    const nextId = typeVouchers.length > 0 
+      ? Math.max(...typeVouchers.map(v => ( (() => { const n = parseInt(v.voucherNumber.replace(/\D/g, '')); return n < 1000000000 ? (n || 0) : 0; })() ))) + 1 
       : 1;
-    setVoucherNumber(String(nextId).padStart(3, '0'));
+    const prefix = vType === 'receipt' ? 'REC' : (vType === 'payment' ? 'PAY' : 'JOU');
+    setVoucherNumber(`${prefix}-${String(nextId).padStart(4, '0')}`);
     setType(vType);
-    setPartyType(vType === 'receipt' ? 'customer' : 'supplier');
+    setPartyType(vType === 'receipt' ? 'customer' : vType === 'payment' ? 'supplier' : 'other');
     setPartyId('');
     setAmount('');
     setDate(new Date().toISOString().split('T')[0]);
     setPaymentMethod('cash');
     setDescription('');
+    setSignature(null);
     setIsModalOpen(true);
   };
 
@@ -53,8 +80,9 @@ export default function Vouchers() {
       date,
       paymentMethod,
       description,
-      createdBy: auth.currentUser?.uid || 'user', // Handled by backend/auth usually
-      referenceNumber: ''
+      createdBy: auth.currentUser?.uid || 'user',
+      referenceNumber: '',
+      signature
     });
     setIsModalOpen(false);
   };
@@ -75,26 +103,56 @@ export default function Vouchers() {
             <ArrowUpRight className="w-5 h-5" />
             <span>سند صرف</span>
           </button>
+          <button onClick={() => openModal('journal')} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold transition-colors shadow-sm">
+            <CheckCircle2 className="w-5 h-5" />
+            <span>سند قيد</span>
+          </button>
         </div>
       </div>
 
-      <div className="bg-white p-2 rounded-xl border border-slate-200 flex flex-wrap shadow-sm gap-1 max-w-full">
-        <button onClick={() => setActiveFilter('all')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${activeFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}>الكل</button>
-        <button onClick={() => setActiveFilter('receipt')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeFilter === 'receipt' ? 'bg-emerald-100 text-emerald-800' : 'text-slate-600 hover:bg-slate-50'}`}><ArrowDownRight className="w-4 h-4" /> قبض</button>
-        <button onClick={() => setActiveFilter('payment')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeFilter === 'payment' ? 'bg-rose-100 text-rose-800' : 'text-slate-600 hover:bg-slate-50'}`}><ArrowUpRight className="w-4 h-4" /> صرف</button>
-        <button onClick={() => setActiveFilter('deferred')} className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${activeFilter === 'deferred' ? 'bg-amber-100 text-amber-800' : 'text-slate-600 hover:bg-slate-50'}`}><Clock className="w-4 h-4" /> آجل</button>
+      <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap items-center shadow-sm gap-4 max-w-full">
+        <div className="flex items-center gap-2">
+          <label className="font-bold text-slate-700">تصفية حسب النوع:</label>
+          <select 
+            value={activeFilter}
+            onChange={(e) => setActiveFilter(e.target.value as any)}
+            className="input-field !py-2 !w-auto"
+          >
+            <option value="all">عرض الكل</option>
+            <option value="receipt">سند قبض</option>
+            <option value="payment">سند صرف</option>
+            <option value="deferred">آجل</option>
+            <option value="journal">سند قيد</option>
+          </select>
+        </div>
       </div>
 
       <div className="sm:bg-white sm:rounded-2xl sm:border sm:border-slate-200 sm:shadow-sm sm:overflow-hidden">
-        <div className="card-header">
-           <div className="relative max-w-md">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-4 items-center bg-slate-50/50">
+          <div className="relative flex-1 w-full">
             <Search className="w-5 h-5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
             <input 
               type="text" 
-              placeholder="بحث برقم السند أو الوصف..." 
+              placeholder="بحث بالرقم، الوصف، الاسم، التاريخ، المبلغ..." 
               className="input-field pl-4 pr-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label className="text-sm font-bold text-slate-600 shrink-0">من:</label>
+            <input 
+              type="date" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="input-field !py-2"
+            />
+            <label className="text-sm font-bold text-slate-600 shrink-0">إلى:</label>
+            <input 
+              type="date" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="input-field !py-2"
             />
           </div>
         </div>
@@ -113,9 +171,7 @@ export default function Vouchers() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredVouchers.map((v) => {
-                let partyName = '-';
-                if (v.partyType === 'customer') partyName = customers.find(c => c.id === v.partyId)?.name || '-';
-                if (v.partyType === 'supplier') partyName = suppliers.find(s => s.id === v.partyId)?.name || '-';
+                const partyName = getPartyName(v);
 
                 return (
                   <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
@@ -140,13 +196,16 @@ export default function Vouchers() {
                     </td>
                     <td data-label="المبلغ" className="px-2 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(v.amount)}</td>
                     <td data-label="طريقة الدفع" className="px-2 py-3 text-slate-600">
-                      {v.paymentMethod === 'cash' ? 'نقدي' : v.paymentMethod === 'bank' ? 'حوالة بنكية' : 'شيك'}
+                      {v.paymentMethod === 'cash' ? 'نقدي' : v.paymentMethod === 'remittance' ? 'حوالة' : v.paymentMethod === 'jeeb' ? 'جيب' : 'محفظة أخرى'}
                     </td>
                     <td data-label="البيان" className="px-2 py-3 text-slate-500 max-w-[200px] truncate" title={v.description}>
                       <div className="flex justify-between items-center">
                         <span className="truncate">{v.description}</span>
                         <div className="flex gap-1 shrink-0">
-                          <button onClick={() => setPrintingVoucher({voucher: v, partyName})} className="text-teal-600 hover:text-teal-800 p-1 transition-colors">
+                          <button onClick={() => setPrintingA5Voucher({voucher: v, partyName})} className="text-indigo-600 hover:text-indigo-800 p-1 transition-colors" title="معاينة طباعة A5">
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setPrintingVoucher({voucher: v, partyName})} className="text-teal-600 hover:text-teal-800 p-1 transition-colors" title="طباعة حرارية">
                             <Printer className="w-4 h-4" />
                           </button>
                           <button onClick={async () => {
@@ -181,14 +240,15 @@ export default function Vouchers() {
             receivedFrom: printingVoucher.partyName,
             amount: formatCurrency(printingVoucher.voucher.amount),
             amountInWords: "",
-            transferNumber: printingVoucher.voucher.paymentMethod === 'bank' ? 'حوالة بنكية' : printingVoucher.voucher.paymentMethod === 'check' ? 'شيك' : 'نقداً',
-            network: printingVoucher.voucher.paymentMethod !== 'cash' ? 'تحويل' : 'صندوق المعمل',
+            transferNumber: printingVoucher.voucher.paymentMethod === 'cash' ? 'نقداً' : printingVoucher.voucher.paymentMethod === 'remittance' ? 'حوالة' : printingVoucher.voucher.paymentMethod === 'jeeb' ? 'جيب' : 'محفظة إلكترونية',
+            network: printingVoucher.voucher.paymentMethod !== 'cash' ? 'حوالة / محفظة' : 'صندوق المعمل',
             transferDate: formatDate(printingVoucher.voucher.date),
             paymentFor: printingVoucher.voucher.description,
             remaining: "",
             receiver: "",
             cashier: "",
-            type: printingVoucher.voucher.type
+            type: printingVoucher.voucher.type,
+            signature: printingVoucher.voucher.signature
           }}
           onClose={() => setPrintingVoucher(null)} 
         />
@@ -250,8 +310,9 @@ export default function Vouchers() {
                   <label className="label">طريقة الدفع</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)} className="input-field">
                     <option value="cash">نقدي</option>
-                    <option value="bank">تحويل بنكي</option>
-                    <option value="check">شيك</option>
+                    <option value="remittance">حوالة</option>
+                    <option value="jeeb">جيب</option>
+                    <option value="e_wallet">محفظة إلكترونية أخرى</option>
                   </select>
                 </div>
               </div>
@@ -261,6 +322,10 @@ export default function Vouchers() {
                 <textarea rows={3} required value={description} onChange={e => setDescription(e.target.value)} className="input-field"></textarea>
               </div>
 
+              
+              <div className="col-span-1 md:col-span-2 mb-4">
+                <SignaturePad onChange={setSignature} initialValue={signature} />
+              </div>
               <div className="modal-footer">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="btn-outline">إلغاء</button>
                 <button type="submit" className="btn-primary">حفظ السند</button>
