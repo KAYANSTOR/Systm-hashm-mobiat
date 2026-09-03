@@ -14,6 +14,22 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * يرجع صنف Tailwind لحجم خط مناسب حسب عدد خانات الرقم، حتى لا تكسر
+ * الأرقام المالية الكبيرة (بالريال اليمني غالبًا 6-9 خانات) تخطيط
+ * البطاقة التي تُعرض بداخلها. استُخدمت هذه الدالة بدل تكرار نفس
+ * المنطق يدويًا (أو تجاهله) في كل شاشة تعرض قيمة مالية بارزة.
+ */
+export function adaptiveValueClass(
+  value: string | number,
+  sizes: [huge: string, large: string, normal: string] = ['text-lg', 'text-xl', 'text-2xl']
+): string {
+  const len = String(value).replace(/[^\d]/g, '').length;
+  if (len > 12) return sizes[0];
+  if (len > 8) return sizes[1];
+  return sizes[2];
+}
+
 export function formatDate(date: string | Date | any): string {
   // Handle Firestore Timestamps
   let dateObj = date;

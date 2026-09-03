@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { Search } from "lucide-react";
 import "./StatementFilters.css";
 
 export type Party = {
