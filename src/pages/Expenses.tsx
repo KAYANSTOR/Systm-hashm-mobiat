@@ -1,3 +1,4 @@
+import { CustomDatePicker, CustomPartyPicker } from '../components/StatementFilters';
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate } from '../lib/utils';
@@ -11,7 +12,7 @@ export default function Expenses() {
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
   
   // Filters
   const [activeTab, setActiveTab] = useState<'work' | 'personal'>('work');
@@ -240,7 +241,7 @@ export default function Expenses() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">التاريخ</label>
-                  <input required type="date" value={date} onChange={e => setDate(e.target.value)} className="input-field" />
+                  <CustomDatePicker value={date} onChange={setDate} className="input-field flex justify-between items-center" />
                 </div>
               </div>
               

@@ -1,14 +1,15 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/App.tsx', 'utf-8');
+let code = fs.readFileSync('src/App.tsx', 'utf8');
 
-code = code.replace(
-  "import Reports from './pages/Reports';",
-  "import Reports from './pages/Reports';\nimport CashBox from './pages/CashBox';\nimport Expenses from './pages/Expenses';"
-);
+// Add import
+if (!code.includes("import Settings")) {
+  code = code.replace(/import Expenses from '.\/pages\/Expenses';/, "import Expenses from './pages/Expenses';\nimport Settings from './pages/Settings';");
+}
 
-code = code.replace(
-  "case 'reports': return <Reports />;",
-  "case 'reports': return <Reports />;\n      case 'cashbox': return <CashBox />;\n      case 'expenses': return <Expenses />;"
-);
+// Add case
+if (!code.includes("case 'settings':")) {
+  code = code.replace(/case 'expenses': return <Expenses \/>;/, "case 'expenses': return <Expenses />;\n      case 'settings': return <Settings />;");
+}
 
 fs.writeFileSync('src/App.tsx', code);
+console.log('patched App.tsx');

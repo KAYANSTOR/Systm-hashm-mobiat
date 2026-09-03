@@ -1,10 +1,10 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate, cn } from '../lib/utils';
-import { TrendingUp, Package, Users, CheckCircle2, ChevronLeft, ShoppingBag, Receipt, UserPlus, Box } from 'lucide-react';
+import { TrendingUp, Package, Users, ArrowDownRight, ArrowUpRight, Calendar,  CheckCircle2, ChevronLeft, ShoppingBag, Receipt, UserPlus, Box, CreditCard } from 'lucide-react';
 
 export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) => void }) {
-  const { customers, inventory, invoices } = useStore();
+  const { customers, suppliers, inventory, invoices, transactions } = useStore();
   
   const totalReceivables = customers.reduce((sum, c) => sum + c.balance, 0);
   
@@ -36,27 +36,9 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
   return (
     <div className="space-y-4 pb-8">
       
-      {/* Greeting & Date */}
-      <div className="text-center mb-6 mt-2">
-        <h2 className="text-slate-500 font-bold text-sm">صباح الخير — {dateString}</h2>
-        <p className="text-slate-400 text-xs mt-1">الاشتراك حتى ٢٤ أكتوبر ٢٠٢٦</p>
-      </div>
 
-      {/* Status Banner */}
-      <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-        <div className="bg-white text-emerald-600 px-3 py-1.5 rounded-full text-xs font-bold border border-emerald-100 flex items-center gap-1.5 shadow-sm">
-          <CheckCircle2 className="w-3.5 h-3.5" /> نشطة
-        </div>
-        <div className="flex items-center gap-3 text-right">
-          <div>
-            <h4 className="font-bold text-teal-800 text-sm">النظام يعمل بشكل سليم</h4>
-            <p className="text-xs text-teal-600 mt-0.5">معالجة مبالغ الفئات المعرفة فقط</p>
-          </div>
-          <div className="bg-emerald-500 rounded-full w-4 h-4 flex items-center justify-center shadow-sm">
-            <CheckCircle2 className="w-3 h-3 text-white" />
-          </div>
-        </div>
-      </div>
+
+
 
       {/* Hero Card */}
       <div 
@@ -87,12 +69,12 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
             <div className="text-xs opacity-70 mt-1 font-bold">العملاء</div>
           </div>
           <div 
-            onClick={(e) => { e.stopPropagation(); setActiveTab('inventory'); }}
+            onClick={(e) => { e.stopPropagation(); setActiveTab('parties'); }}
             className="text-center px-2 cursor-pointer hover:bg-white/5 rounded-xl transition-colors py-1"
           >
-            <Package className="w-5 h-5 mx-auto mb-2 opacity-70" />
-            <div className="text-xl font-bold">{inventory.length}</div>
-            <div className="text-xs opacity-70 mt-1 font-bold">الأصناف المتوفرة</div>
+            <Users className="w-5 h-5 mx-auto mb-2 opacity-70" />
+            <div className="text-xl font-bold">{suppliers.length}</div>
+            <div className="text-xs opacity-70 mt-1 font-bold">الموردين</div>
           </div>
         </div>
       </div>
@@ -151,7 +133,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         <ActionCard onClick={() => setActiveTab('sales')} icon={<ShoppingBag className="w-6 h-6 text-teal-600" />} title="فاتورة مبيعات" />
         <ActionCard onClick={() => setActiveTab('vouchers')} icon={<Receipt className="w-6 h-6 text-teal-600" />} title="سند قبض" />
         <ActionCard onClick={() => setActiveTab('parties')} icon={<UserPlus className="w-6 h-6 text-teal-600" />} title="إضافة عميل" />
-        <ActionCard onClick={() => setActiveTab('inventory')} icon={<Box className="w-6 h-6 text-teal-600" />} title="إضافة صنف" />
+        <ActionCard onClick={() => setActiveTab('expenses')} icon={<CreditCard className="w-6 h-6 text-teal-600" />} title="إضافة مصروف" />
       </div>
 
       {/* Recent Transactions Preview */}
@@ -165,30 +147,48 @@ export default function Dashboard({ setActiveTab }: { setActiveTab: (tab: any) =
         </div>
 
         <div className="bg-white rounded-3xl p-8 border border-slate-100/60 shadow-sm text-center">
-          {invoices.length > 0 ? (
-            <div>
-              <table className="table-standard">
-                <tbody className="divide-y divide-slate-50">
-                  {invoices.slice(0, 3).map((inv) => (
-                    <tr key={inv.id} className="transition-colors">
-                      <td data-label="التاريخ" className="py-4 text-slate-500 text-xs">{formatDate(inv.date)}</td>
-                      <td data-label="المبلغ" className="py-4 font-bold text-slate-800 text-left">{formatCurrency(inv.total)}</td>
-                      <td data-label="البيان" className="py-4 text-right">
-                        <div className="font-bold text-sm text-slate-800">
-                          {inv.type === 'sale' ? 'فاتورة مبيعات' : 'فاتورة مشتريات'}
+          {transactions.length > 0 ? (
+            <div className="flex flex-col gap-3 text-right">
+              {[...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5).map((trx) => (
+                <div key={trx.id} className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100/60 hover:shadow-md transition-shadow flex flex-col gap-3 relative overflow-hidden group">
+                  <div className={`absolute top-0 right-0 w-1.5 h-full transition-colors ${trx.debit > 0 ? 'bg-emerald-400 group-hover:bg-emerald-500' : 'bg-rose-400 group-hover:bg-rose-500'}`}></div>
+                  
+                  <div className="flex justify-between items-start pr-1">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center shadow-sm shrink-0 ${trx.debit > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                         {trx.debit > 0 ? <ArrowDownRight className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm sm:text-base leading-tight mb-1">{trx.description}</h4>
+                        <div className="text-[11px] sm:text-xs text-slate-500 font-medium flex items-center gap-2 flex-wrap">
+                           <span className="flex items-center gap-1">{formatDate(trx.date)}</span>
+                           <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                           <span className="font-mono text-slate-600 bg-slate-100 px-1.5 rounded">{trx.documentNumber}</span>
                         </div>
-                        <div className="text-xs text-slate-500 mt-1">{inv.invoiceNumber}</div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                    <div className="text-left shrink-0 pl-1">
+                      <p className={`text-lg sm:text-xl font-black ${trx.debit > 0 ? 'text-emerald-600' : 'text-rose-600'}`} dir="ltr">
+                        {trx.debit > 0 ? '+' : '-'}{formatCurrency(trx.debit > 0 ? trx.debit : trx.credit).replace('ر.ي', '').trim()}
+                        <span className="text-xs ml-1 font-bold">ر.ي</span>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-3 mt-1 border-t border-slate-50/80 pr-1">
+                     <div className="flex items-center gap-2">
+                       <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg text-[11px] font-bold">
+                         {trx.documentType === 'invoice' ? 'فاتورة' : trx.documentType === 'voucher' ? 'سند' : 'مصروف'}
+                       </span>
+                     </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
-            <div className="py-6 flex flex-col items-center">
-              <Receipt className="w-12 h-12 text-slate-700 mb-4" strokeWidth={1.5} />
-              <h3 className="text-lg font-bold text-slate-800 mb-2">لا توجد عمليات حديثة</h3>
-              <p className="text-sm text-slate-500 max-w-[200px] leading-relaxed">ستظهر العمليات هنا عند استلام التحويلات وصرف الفواتير</p>
+            <div className="py-12 flex flex-col items-center opacity-60">
+              <Receipt className="w-12 h-12 text-slate-300 mb-3" />
+              <p className="text-slate-500 font-bold">لا توجد عمليات مسجلة</p>
             </div>
           )}
         </div>

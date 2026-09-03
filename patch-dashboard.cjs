@@ -1,58 +1,54 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/pages/Dashboard.tsx', 'utf8');
+let code = fs.readFileSync('src/pages/Dashboard.tsx', 'utf8');
 
-const todaySalesMatch = /const todaySales = todaySalesInvoices\.reduce\(\(sum, i\) => sum \+ i\.total, 0\);/;
-const newTodaySales = `
-  const todaySales = todaySalesInvoices.filter(i => i.invoiceType !== 'SERVICE').reduce((sum, i) => sum + i.total, 0);
-  const todayServices = todaySalesInvoices.filter(i => i.invoiceType === 'SERVICE').reduce((sum, i) => sum + i.total, 0);
-`;
-content = content.replace(todaySalesMatch, newTodaySales);
+const tableBlockStart = '<div>\\s*<table className="table-standard">';
+const tableBlockEnd = '</table>\\s*</div>';
+const tableRegex = new RegExp(`${tableBlockStart}[\\s\\S]*?${tableBlockEnd}`);
 
-const monthSalesMatch = /const monthSales = monthSalesInvoices\.reduce\(\(sum, i\) => sum \+ i\.total, 0\);/;
-const newMonthSales = `
-  const monthSales = monthSalesInvoices.filter(i => i.invoiceType !== 'SERVICE').reduce((sum, i) => sum + i.total, 0);
-  const monthServices = monthSalesInvoices.filter(i => i.invoiceType === 'SERVICE').reduce((sum, i) => sum + i.total, 0);
-`;
-content = content.replace(monthSalesMatch, newMonthSales);
+const newList = `<div className="flex flex-col gap-3 text-right">
+              {[...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5).map((trx) => (
+                <div key={trx.id} className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100/60 hover:shadow-md transition-shadow flex flex-col gap-3 relative overflow-hidden group">
+                  <div className={\`absolute top-0 right-0 w-1.5 h-full transition-colors \${trx.debit > 0 ? 'bg-emerald-400 group-hover:bg-emerald-500' : 'bg-rose-400 group-hover:bg-rose-500'}\`}></div>
+                  
+                  <div className="flex justify-between items-start pr-1">
+                    <div className="flex items-center gap-3">
+                      <div className={\`w-12 h-12 rounded-[14px] flex items-center justify-center shadow-sm shrink-0 \${trx.debit > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}\`}>
+                         {trx.debit > 0 ? <ArrowDownRight className="w-6 h-6" /> : <ArrowUpRight className="w-6 h-6" />}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm sm:text-base leading-tight mb-1">{trx.description}</h4>
+                        <div className="text-[11px] sm:text-xs text-slate-500 font-medium flex items-center gap-2 flex-wrap">
+                           <span className="flex items-center gap-1">{formatDate(trx.date)}</span>
+                           <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                           <span className="font-mono text-slate-600 bg-slate-100 px-1.5 rounded">{trx.documentNumber}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-left shrink-0 pl-1">
+                      <p className={\`text-lg sm:text-xl font-black \${trx.debit > 0 ? 'text-emerald-600' : 'text-rose-600'}\`} dir="ltr">
+                        {trx.debit > 0 ? '+' : '-'}{formatCurrency(trx.debit > 0 ? trx.debit : trx.credit).replace('ر.ي', '').trim()}
+                        <span className="text-xs ml-1 font-bold">ر.ي</span>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-3 mt-1 border-t border-slate-50/80 pr-1">
+                     <div className="flex items-center gap-2">
+                       <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg text-[11px] font-bold">
+                         {trx.documentType === 'invoice' ? 'فاتورة' : trx.documentType === 'voucher' ? 'سند' : 'مصروف'}
+                       </span>
+                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>`;
 
-// Now patch the cards to show these new numbers
-const cardsMatch = /<div className="bg-white rounded-3xl p-5 border border-slate-100\/60 shadow-sm shadow-slate-200\/30 flex flex-col justify-between">/g;
+code = code.replace(tableRegex, newList);
 
-// I'll just find the exact text and replace it.
-const salesCard1Match = /<div className="text-slate-500 font-bold text-sm mb-1">مبيعات اليوم<\/div>\s*<div className="text-3xl font-black text-slate-800" dir="ltr">\{formatCurrency\(todaySales\)\}<\/div>/;
-const newSalesCard1 = `<div className="text-slate-500 font-bold text-sm mb-1">مبيعات اليوم (بضاعة)</div>
-            <div className="text-3xl font-black text-slate-800" dir="ltr">{formatCurrency(todaySales)}</div>`;
-content = content.replace(salesCard1Match, newSalesCard1);
+// make sure ArrowDownRight and ArrowUpRight are imported if they are not
+if (!code.includes('ArrowDownRight')) {
+  code = code.replace("import { TrendingUp, Package, Users", "import { TrendingUp, Package, Users, ArrowDownRight, ArrowUpRight");
+}
 
-const salesCard2Match = /<div className="text-slate-500 font-bold text-sm mb-1">مبيعات الشهر<\/div>\s*<div className="text-3xl font-black text-slate-800" dir="ltr">\{formatCurrency\(monthSales\)\}<\/div>/;
-const newSalesCard2 = `<div className="text-slate-500 font-bold text-sm mb-1">مبيعات الشهر (بضاعة)</div>
-            <div className="text-3xl font-black text-slate-800" dir="ltr">{formatCurrency(monthSales)}</div>`;
-content = content.replace(salesCard2Match, newSalesCard2);
-
-const thirdCardMatch = /<div className="bg-white rounded-3xl p-5 border border-slate-100\/60 shadow-sm shadow-slate-200\/30 flex flex-col justify-between">\s*<div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center mb-4">\s*<Users className="w-5 h-5 text-orange-500" \/>\s*<\/div>\s*<div>\s*<div className="text-slate-500 font-bold text-sm mb-1">الديون المستحقة \(للعملاء\)<\/div>\s*<div className="text-3xl font-black text-slate-800" dir="ltr">\{formatCurrency\(totalReceivables\)\}<\/div>\s*<\/div>\s*<\/div>/;
-
-const newThirdCard = `<div className="bg-white rounded-3xl p-5 border border-slate-100/60 shadow-sm shadow-slate-200/30 flex flex-col justify-between">
-          <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center mb-4">
-            <TrendingUp className="w-5 h-5 text-purple-500" />
-          </div>
-          <div>
-            <div className="text-slate-500 font-bold text-sm mb-1">تطريز اليوم</div>
-            <div className="text-3xl font-black text-slate-800" dir="ltr">{formatCurrency(todayServices)}</div>
-          </div>
-        </div>
-        <div className="bg-white rounded-3xl p-5 border border-slate-100/60 shadow-sm shadow-slate-200/30 flex flex-col justify-between">
-          <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center mb-4">
-            <Users className="w-5 h-5 text-orange-500" />
-          </div>
-          <div>
-            <div className="text-slate-500 font-bold text-sm mb-1">الديون المستحقة</div>
-            <div className="text-3xl font-black text-slate-800" dir="ltr">{formatCurrency(totalReceivables)}</div>
-          </div>
-        </div>`;
-content = content.replace(thirdCardMatch, newThirdCard);
-
-// change grid cols for the cards
-content = content.replace(/className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6"/, 'className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"');
-
-fs.writeFileSync('src/pages/Dashboard.tsx', content, 'utf8');
-console.log("Dashboard patched.");
+fs.writeFileSync('src/pages/Dashboard.tsx', code);
+console.log('Dashboard recent transactions patched');

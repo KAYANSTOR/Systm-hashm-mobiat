@@ -1,8 +1,9 @@
+import { CustomDatePicker, CustomPartyPicker } from '../components/StatementFilters';
 import React, { useState } from 'react';
 import { auth } from '../firebase';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate } from '../lib/utils';
-import { Plus, Check, Search, FileText, ArrowDownRight, ArrowUpRight, X, Trash2, CheckCircle, Pencil } from 'lucide-react';
+import { Plus, Check, Search, FileText, ArrowDownRight, ArrowUpRight, X, Trash2, CheckCircle, Pencil, ShoppingBag } from 'lucide-react';
 import { InvoiceItem, Invoice } from '../types';
 import InvoicePrintTemplate from '../components/InvoicePrintTemplate';
 
@@ -11,6 +12,7 @@ export default function Sales() {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [invoiceType, setInvoiceType] = useState<'sale' | 'purchase'>('sale');
   const [salesType, setSalesType] = useState<'PRODUCT_SALE' | 'SERVICE'>('PRODUCT_SALE');
@@ -20,7 +22,7 @@ export default function Sales() {
   
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [partyId, setPartyId] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [discount, setDiscount] = useState('0');
   const [paidAmount, setPaidAmount] = useState('0');
@@ -179,7 +181,7 @@ export default function Sales() {
           <p className="page-subtitle">إنشاء فواتير بيع أو شراء واستعراض الحركات السابقة.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => openModal('sale', 'PRODUCT_SALE')} className="btn-primary">
+          <button onClick={() => setIsComingSoonOpen(true)} className="btn-primary">
             <Plus className="w-5 h-5" />
             <span>بيع بضاعة جديدة</span>
           </button>
@@ -208,110 +210,80 @@ export default function Sales() {
               />
             </div>
           </div>
-          <div className="table-container">
-<table className="table-standard">
-              <thead>
-                <tr>
-                  <th className="px-2 py-3">رقم الفاتورة</th>
-                  <th className="px-2 py-3">التاريخ</th>
-                  <th className="px-2 py-3">النوع</th>
-                  <th className="px-2 py-3">الطرف (عميل/مورد)</th>
-                  <th className="px-2 py-3">الإجمالي</th>
-                  <th className="px-2 py-3">المدفوع</th>
-                  <th className="px-2 py-3">المتبقي</th>
-                  <th className="px-2 py-3">الحالة</th>
-                  <th className="px-2 py-3 text-center">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredInvoices.map((inv) => {
-                  const partyName = inv.type === 'sale' 
-                    ? customers.find(c => c.id === inv.partyId)?.name 
-                    : suppliers.find(s => s.id === inv.partyId)?.name;
-
-                  return (
-                    <tr key={inv.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td data-label="رقم الفاتورة" className="px-2 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
-                      <td data-label="التاريخ" className="px-2 py-3 text-slate-600">{formatDate(inv.date)}</td>
-                      <td data-label="النوع" className="px-2 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                          inv.type === 'sale' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {inv.type === 'sale' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                          {inv.type === 'sale' ? 'مبيعات' : 'مشتريات'}
-                        </span>
-                      </td>
-                      <td data-label="الطرف" className="px-2 py-3 font-bold text-slate-800">{partyName || '<غير معروف>'}</td>
-                      <td data-label="الإجمالي" className="px-2 py-3 font-black text-slate-900" dir="ltr">{formatCurrency(inv.total)}</td>
-                      <td data-label="المدفوع" className="px-2 py-3 text-emerald-600 font-bold" dir="ltr">{formatCurrency(inv.paidAmount)}</td>
-                      <td data-label="المتبقي" className="px-2 py-3 text-rose-600 font-bold" dir="ltr">{formatCurrency(inv.remainingAmount)}</td>
-                      <td data-label="الحالة" className="px-2 py-3">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${
-                           inv.status === 'paid' ? 'bg-emerald-100 text-emerald-800' :
-                           inv.status === 'partial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-                        }`}>
-                          {inv.status === 'paid' ? 'مدفوع' : inv.status === 'partial' ? 'مدفوع جزئياً' : 'غير مدفوع'}
-                        </span>
-                        {!inv.isApproved && (
-                          <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700 mr-2">
-                            مسودة
-                          </span>
-                        )}
-                      </td>
-                      <td data-label="الإجراءات" className="px-4 py-3">
-                        <div className="flex items-center justify-end sm:justify-center gap-2">
-                          {!inv.isApproved && (
-                            <>
-                              <button 
-                                onClick={async () => {
-                                  if(confirm('هل أنت متأكد من اعتماد هذه الفاتورة؟ سيتم ترحيلها إلى الحسابات والمخزن.')) await approveInvoice(inv.id);
-                                }} 
-                                className="flex items-center justify-center bg-amber-50 text-amber-500 hover:bg-emerald-50 hover:text-emerald-600 p-2 rounded-xl transition-colors shadow-sm" 
-                                title="اعتماد الفاتورة وترحيلها"
-                              >
-                                <CheckCircle className="w-5 h-5" />
-                              </button>
-                              <button 
-                                onClick={() => openEditModal(inv)}
-                                className="flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 p-2 rounded-xl transition-colors shadow-sm" 
-                                title="تعديل الفاتورة"
-                              >
-                                <Pencil className="w-5 h-5" />
-                              </button>
-                            </>
-                          )}
-                          <button 
-                            onClick={() => {
-                              const party = inv.type === 'sale' ? customers.find(c => c.id === inv.partyId) : suppliers.find(s => s.id === inv.partyId);
-                              setSelectedPartyName(party?.name || 'غير محدد');
-                              setSelectedInvoice(inv);
-                            }}
-                            className="flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-teal-50 hover:text-brand-500 p-2 rounded-xl transition-colors shadow-sm" 
-                            title="عرض وطباعة الفاتورة"
-                          >
-                            <FileText className="w-5 h-5" />
+          <div className="p-4 sm:p-6 bg-[#f8fafc] grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredInvoices.map((inv) => {
+              const partyName = inv.type === 'sale' 
+                 ? customers.find(c => c.id === inv.partyId)?.name 
+                 : suppliers.find(s => s.id === inv.partyId)?.name;
+              return (
+                 <div key={inv.id} className="bg-white rounded-[24px] p-5 sm:p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 relative overflow-hidden group">
+                   <div className={`absolute top-0 right-0 w-1.5 h-full transition-colors ${inv.type === 'sale' ? 'bg-blue-400 group-hover:bg-blue-500' : 'bg-purple-400 group-hover:bg-purple-500'}`}></div>
+                   
+                   <div className="flex justify-between items-start">
+                      <div className="flex flex-col gap-1.5">
+                         <div className="flex items-center gap-2 flex-wrap">
+                           <span className="font-mono font-bold text-slate-700 bg-slate-50 border border-slate-100 px-2.5 py-1 rounded-xl text-xs">{inv.invoiceNumber}</span>
+                           <span className="text-xs font-bold text-slate-400">{formatDate(inv.date)}</span>
+                         </div>
+                         <h3 className="font-black text-lg sm:text-xl text-slate-800 mt-1">{partyName || '<غير معروف>'}</h3>
+                         <div className="flex gap-2 mt-1 flex-wrap">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                              inv.type === 'sale' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+                            }`}>
+                              {inv.type === 'sale' ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                              {inv.type === 'sale' ? 'مبيعات' : 'مشتريات'}
+                            </span>
+                            <span className={`inline-flex px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                               inv.status === 'paid' ? 'bg-emerald-50 text-emerald-700' :
+                               inv.status === 'partial' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'
+                            }`}>
+                              {inv.status === 'paid' ? 'مدفوع' : inv.status === 'partial' ? 'مدفوع جزئياً' : 'غير مدفوع'}
+                            </span>
+                            {!inv.isApproved && (
+                              <span className="inline-flex px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600">مسودة</span>
+                            )}
+                         </div>
+                      </div>
+                      <div className="text-left shrink-0 pl-1">
+                         <p className="text-2xl sm:text-3xl font-black text-slate-900" dir="ltr">{formatCurrency(inv.total).replace('ر.ي','').trim()} <span className="text-sm font-bold text-slate-500">ر.ي</span></p>
+                         <div className="text-[11px] sm:text-xs font-bold mt-2 flex flex-col gap-1 items-end">
+                            {inv.paidAmount > 0 && <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md" dir="ltr">مدفوع: {formatCurrency(inv.paidAmount)}</span>}
+                            {inv.remainingAmount > 0 && <span className="text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md" dir="ltr">متبقي: {formatCurrency(inv.remainingAmount)}</span>}
+                         </div>
+                      </div>
+                   </div>
+                   
+                   <div className="flex items-center justify-end gap-2 pt-4 mt-2 border-t border-slate-50/80">
+                      {!inv.isApproved && (
+                        <>
+                          <button onClick={async () => { if(confirm('هل أنت متأكد من اعتماد هذه الفاتورة؟ سيتم ترحيلها إلى الحسابات.')) await approveInvoice(inv.id); }} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl transition-colors font-bold text-xs shadow-sm" title="اعتماد الفاتورة وترحيلها">
+                            <CheckCircle className="w-4 h-4" /> <span className="hidden sm:inline">اعتماد</span>
                           </button>
-                          <button 
-                            onClick={async () => {
-                              if(confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) await deleteInvoice(inv.id);
-                            }} 
-                            className="flex items-center justify-center bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 p-2 rounded-xl transition-colors shadow-sm" 
-                            title="حذف الفاتورة"
-                          >
-                            <Trash2 className="w-5 h-5" />
+                          <button onClick={() => openEditModal(inv)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-600 hover:bg-blue-500 hover:text-white rounded-xl transition-colors font-bold text-xs shadow-sm" title="تعديل الفاتورة">
+                            <Pencil className="w-4 h-4" /> <span className="hidden sm:inline">تعديل</span>
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filteredInvoices.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500 sm:!justify-center !justify-center">لا توجد فواتير مطابقة للبحث.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        </>
+                      )}
+                      <button onClick={() => {
+                        const party = inv.type === 'sale' ? customers.find(c => c.id === inv.partyId) : suppliers.find(s => s.id === inv.partyId);
+                        setSelectedInvoice(inv);
+                        setSelectedPartyName(party ? party.name : '');
+                      }} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-600 hover:bg-slate-700 hover:text-white rounded-xl transition-colors font-bold text-xs shadow-sm" title="طباعة">
+                        <FileText className="w-4 h-4" /> <span className="hidden sm:inline">طباعة</span>
+                      </button>
+                      <button onClick={async () => { if(confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) await deleteInvoice(inv.id); }} className="flex items-center justify-center p-2 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-colors shadow-sm" title="حذف">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                   </div>
+                 </div>
+              );
+            })}
+            {filteredInvoices.length === 0 && (
+              <div className="col-span-full py-16 text-center text-slate-400 font-medium bg-white rounded-3xl border border-slate-100">
+                <FileText className="w-16 h-16 mx-auto text-slate-200 mb-4" />
+                لا يوجد فواتير مطابقة للبحث
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -335,19 +307,20 @@ export default function Sales() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">التاريخ</label>
-                  <input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500" />
+                  <CustomDatePicker value={date} onChange={setDate} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 flex justify-between items-center" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-2">{invoiceType === 'sale' ? 'العميل' : 'المورد'}</label>
                   <div className="relative">
-                    <select required value={partyId} onChange={e => setPartyId(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
-                      <option value="">اختر {invoiceType === 'sale' ? 'العميل' : 'المورد'}...</option>
-                      {invoiceType === 'sale' ? (
-                        customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)
-                      ) : (
-                        suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)
-                      )}
-                    </select>
+                    <CustomPartyPicker 
+    value={partyId} 
+    onChange={setPartyId} 
+    customers={customers} 
+    suppliers={suppliers} 
+    type={invoiceType === 'sale' ? 'customer' : 'supplier'} 
+    label={invoiceType === 'sale' ? 'اختر العميل' : 'اختر المورد'}
+    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 flex justify-between items-center" 
+  />
                     {partyId && (() => {
                       const party = invoiceType === 'sale' 
                         ? customers.find(c => c.id === partyId) 
@@ -506,6 +479,27 @@ export default function Sales() {
           onClose={() => setSelectedInvoice(null)}
         />
       )}
+
+      {isComingSoonOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl flex flex-col items-center text-center p-8 border border-slate-100">
+            <div className="w-20 h-20 bg-brand-50 text-brand-500 rounded-full flex items-center justify-center mb-6">
+              <ShoppingBag className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-black text-slate-800 mb-2">قريباً</h3>
+            <p className="text-slate-500 mb-8 font-medium leading-relaxed">
+              شاشة مبيعات البضائع والمواد جاري العمل عليها وسيتم إتاحتها في التحديث القادم للنظام.
+            </p>
+            <button 
+              onClick={() => setIsComingSoonOpen(false)} 
+              className="w-full px-6 py-3 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-brand-500/20 active:scale-95"
+            >
+              حسناً، فهمت
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

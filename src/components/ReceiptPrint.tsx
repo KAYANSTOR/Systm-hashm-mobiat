@@ -1,3 +1,5 @@
+import * as htmlToImage from 'html-to-image';
+import jsPDF from 'jspdf';
 import React, { useRef } from "react";
 import "./ReceiptPrint.css";
 import { Share2, Printer, X, Download } from 'lucide-react';
@@ -31,24 +33,90 @@ export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
 
   const fetchPdfBlob = async () => {
     if (!printRef.current) return null;
-    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(el => el.outerHTML)
-      .join('\n');
-    const html = printRef.current.outerHTML;
-    
-    const response = await fetch('/api/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html, styles, orientation: 'receipt' }) // receipt uses 80mm width
-    });
-    
-    if (!response.ok) throw new Error('PDF Generation Failed');
-    return await response.blob();
+    try {
+      if (typeof setIsGenerating === 'function') setIsGenerating(true);
+      
+      const element = printRef.current;
+      
+      const filter = (node) => {
+        const exclusionClasses = ['no-print'];
+        return !exclusionClasses.some(classname => node.classList?.contains(classname));
+      };
+      
+      const dataUrl = await htmlToImage.toJpeg(element, { 
+        quality: 0.95, 
+        pixelRatio: 2, 
+        backgroundColor: '#ffffff',
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          width: element.scrollWidth + 'px',
+          height: element.scrollHeight + 'px'
+        },
+        filter: filter
+      });
+      
+      const pdfWidth = 80;
+      const imgProps = new jsPDF().getImageProperties(dataUrl);
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Dynamic page size to fit all content perfectly in one continuous page
+      const pdf = new jsPDF({ 
+        orientation: 'portrait', 
+        unit: 'mm', 
+        format: [pdfWidth, Math.max(297, pdfHeight + 10)] 
+      });
+      
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      return pdf.output('blob');
+    } catch (err) {
+      console.error(err);
+      return null;
+    } finally {
+      if (typeof setIsGenerating === 'function') setIsGenerating(false);
+    }
   };
 
-  
+  const generatePDF = async () => {
+     const blob = await fetchPdfBlob();
+     if (!blob) return null;
+     
+     // Compatibility layer for code that expects the JS PDF object with a .save method
+     return {
+       save: (name: string) => {
+         const url = URL.createObjectURL(blob);
+         const link = document.createElement('a');
+         link.href = url;
+         link.download = name;
+         link.click();
+         URL.revokeObjectURL(url);
+       },
+       output: (type?: string) => blob
+     };
+  };;
 
-  const handlePrint = () => { window.print(); };
+  const handlePrint = async () => {
+    try {
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (win) {
+         win.onload = () => { win.print(); };
+      } else {
+         alert('يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة، أو استخدم زر التنزيل');
+      }
+    } catch(e) {
+      console.error(e);
+      alert("حدث خطأ أثناء الطباعة");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   
   const handleShareWhatsApp = async () => {
@@ -143,15 +211,8 @@ export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
                   </div>
                 </div>
 
-                <div className="receipt-logo">
-                  {/* Mimicking logo with CSS to match original style */}
-                  <div className="flex flex-col items-center justify-center h-full w-full">
-                     <div className="text-[#208480] font-extrabold text-4xl leading-none relative">
-                       <span className="absolute -top-3 right-0 text-[10px]">الأحمدي</span>
-                       هاشم
-                     </div>
-                     <div className="text-[#208480] font-bold text-[10px] mt-1 whitespace-nowrap">للتطريز الإلكتروني</div>
-                  </div>
+                <div className="receipt-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <img src="/logo.svg" style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: '45px' }} alt="شعار الاحمدي هاشم" />
                 </div>
               </header>
 

@@ -2,20 +2,95 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { FileText, Download, Printer, Filter, Share2, Search, Calendar, UserCheck } from 'lucide-react';
+import { CustomerStatementPreview } from '../components/CustomerStatementPreview';
+import { StatementFilters, CustomDatePicker } from '../components/StatementFilters';
+import type { CustomerStatementData, StatementEntry, StatementCompany } from '../components/CustomerStatement';
+
 import * as htmlToImage from 'html-to-image';
 import jsPDF from 'jspdf';
 
 export default function Reports() {
-  const { invoices, customers, suppliers } = useStore();
-  const [reportType, setReportType] = useState<'sales' | 'customers'>('sales');
+  const { invoices, customers, suppliers, transactions } = useStore();
+  const [reportType, setReportType] = useState<'sales' | 'customers' | 'statement'>('sales');
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Sales Filters State
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('all');
+  const [statementCustomerId, setStatementCustomerId] = useState('');
+  const [statementStartDate, setStatementStartDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
+  const [statementEndDate, setStatementEndDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
   const [paymentStatus, setPaymentStatus] = useState('all');
   const [searchInvoiceNumber, setSearchInvoiceNumber] = useState('');
+  const [transactionType, setTransactionType] = useState('all');
+
+  
+
+  const statementData = useMemo(() => {
+    if (!statementCustomerId) return null;
+    const customer = customers.find(c => c.id === statementCustomerId);
+    if (!customer) return null;
+
+    let filteredTransactions = transactions.filter(t => t.partyId === statementCustomerId);
+    
+    // Sort oldest to newest for chronological statement
+    filteredTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let openingBalance = 0; // In a real system, calculate opening balance up to start date
+    
+    if (statementStartDate) {
+      // Calculate opening balance based on earlier transactions
+      openingBalance = filteredTransactions
+        .filter(t => new Date(t.date) < new Date(statementStartDate))
+        .reduce((sum, t) => sum + (t.debit || 0) - (t.credit || 0), 0);
+      
+      // Filter the actual displayed entries
+      filteredTransactions = filteredTransactions.filter(t => new Date(t.date) >= new Date(statementStartDate));
+    }
+
+    if (statementEndDate) {
+       // Add one day to include the whole end date
+       const nextDay = new Date(statementEndDate);
+       nextDay.setDate(nextDay.getDate() + 1);
+       filteredTransactions = filteredTransactions.filter(t => new Date(t.date) < nextDay);
+    }
+
+    const entries: StatementEntry[] = filteredTransactions.map(t => ({
+      id: t.id,
+      date: new Date(t.date).toLocaleDateString('ar-YE'),
+      transactionType: t.documentType === 'invoice' ? 'فاتورة' : (t.documentType === 'voucher' ? (t.debit ? 'سند صرف' : 'سند قبض') : 'حركة مباشرة'),
+      documentNumber: t.documentNumber,
+      description: t.description,
+      debit: t.debit || 0,
+      credit: t.credit || 0,
+      documentType: t.documentType === 'invoice' ? 'آجل' : 'نقدي'
+    }));
+
+    const data: CustomerStatementData = {
+      statementNumber: 'ST-' + new Date().getTime().toString().slice(-6),
+      date: new Date().toLocaleDateString('ar-YE'),
+      customerName: customer.name,
+      customerNumber: customer.id.substring(0, 6).toUpperCase(),
+      phone: customer.phone,
+      accountType: customer.type === 'wholesale' ? 'جملة' : 'مفرد',
+      periodFrom: statementStartDate ? new Date(statementStartDate).toLocaleDateString('ar-YE') : 'بداية التعامل',
+      periodTo: statementEndDate ? new Date(statementEndDate).toLocaleDateString('ar-YE') : new Date().toLocaleDateString('ar-YE'),
+      openingBalance,
+      entries
+    };
+
+    return data;
+  }, [statementCustomerId, statementStartDate, statementEndDate, transactions, customers]);
+
+  const companyData: StatementCompany = {
+    name: 'معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني',
+    location: 'صنعاء - شارع الزبيري - مقابل وزارة الدفاع',
+    phone1: '770 447 441',
+    phone2: '730 447 441',
+    logoSrc: '/logo.svg'
+  };
+
 
   const printReport = () => {
     window.print();
@@ -74,6 +149,7 @@ export default function Reports() {
       if (inv.type !== 'sale') return false;
       if (selectedCustomerId !== 'all' && inv.partyId !== selectedCustomerId) return false;
       if (paymentStatus !== 'all' && inv.status !== paymentStatus) return false;
+      if (transactionType !== 'all' && inv.invoiceType !== transactionType) return false;
       if (searchInvoiceNumber && !inv.invoiceNumber.toLowerCase().includes(searchInvoiceNumber.toLowerCase())) return false;
       
       if (startDate) {
@@ -147,6 +223,12 @@ export default function Reports() {
         >
           أرصدة العملاء
         </button>
+        <button 
+          onClick={() => setReportType('statement')}
+          className={`px-6 py-2.5 rounded-xl font-bold whitespace-nowrap transition-colors ${reportType === 'statement' ? 'bg-brand-50 text-brand-700 border border-brand-200' : 'text-slate-600 hover:bg-slate-50'}`}
+        >
+          كشف حساب عميل
+        </button>
       </div>
 
       {/* Sales Report Filters */}
@@ -187,6 +269,18 @@ export default function Reports() {
                 </select>
               </div>
               <div>
+                <label className="label text-xs">نوع العملية</label>
+                <select 
+                  className="input-field py-2" 
+                  value={transactionType}
+                  onChange={e => setTransactionType(e.target.value)}
+                >
+                  <option value="all">الكل</option>
+                  <option value="PRODUCT">بضاعة</option>
+                  <option value="SERVICE">خدمة تطريز</option>
+                </select>
+              </div>
+              <div>
                 <label className="label text-xs">رقم الفاتورة</label>
                 <input 
                   type="text" 
@@ -198,21 +292,11 @@ export default function Reports() {
               </div>
               <div>
                 <label className="label text-xs">من تاريخ</label>
-                <input 
-                  type="date" 
-                  className="input-field py-2" 
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                />
+                <CustomDatePicker value={startDate} onChange={setStartDate} className="input-field py-2 flex justify-between items-center" />
               </div>
               <div>
                 <label className="label text-xs">إلى تاريخ</label>
-                <input 
-                  type="date" 
-                  className="input-field py-2" 
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                />
+                <CustomDatePicker value={endDate} onChange={setEndDate} className="input-field py-2 flex justify-between items-center" />
               </div>
             </div>
           </div>
@@ -229,16 +313,12 @@ export default function Reports() {
             <h2 className="font-bold text-lg text-slate-700 mb-2 font-tajawal">صنعاء - شارع الزبيري - مقابل وزارة الدفاع</h2>
             <p className="font-bold text-lg font-sans" dir="ltr">770 447 441 - 730 447 441</p>
           </div>
-          <div className="w-40 ml-4 shrink-0 flex flex-col items-center">
-             <div className="text-brand-500 font-extrabold text-5xl font-tajawal leading-none relative">
-               <span className="absolute -top-4 right-0 text-sm">الأحمدي</span>
-               هاشم
-             </div>
-             <div className="text-brand-500 font-bold text-sm mt-1 whitespace-nowrap">للتطريز الإلكتروني</div>
+          <div className="w-48 ml-4 shrink-0 flex justify-end">
+            <img src="/logo.svg" className="max-h-24 object-contain" alt="شعار الاحمدي هاشم" />
           </div>
         </div>
 
-        <div className="mb-8 flex justify-between items-end print:mt-4">
+        <div className={`mb-8 flex justify-between items-end print:mt-4 ${reportType === 'statement' ? 'print:hidden' : ''}`}>
           <div className="print:hidden">
             <h1 className="text-3xl font-black text-slate-900 mb-2">معامل هاشم الأحمدي</h1>
             <p className="text-slate-600 font-medium">للتطريز الإلكتروني</p>
@@ -278,6 +358,11 @@ export default function Reports() {
                         <td data-label="رقم الفاتورة" className="px-3 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
                         <td data-label="التاريخ" className="px-3 py-3 text-slate-600 whitespace-nowrap">{formatDate(inv.date)}</td>
                         <td data-label="العميل" className="px-3 py-3 font-bold">{customerName}</td>
+                        <td data-label="نوع العملية" className="px-3 py-3 text-center">
+                          <span className={`text-xs px-2 py-1 rounded-full font-bold ${inv.invoiceType === 'PRODUCT' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                            {inv.invoiceType === 'PRODUCT' ? 'بضاعة' : 'خدمة تطريز'}
+                          </span>
+                        </td>
                         <td data-label="الأصناف" className="px-3 py-3 text-sm text-slate-600 max-w-xs truncate" title={summary.names !== '-' ? summary.names : ''}>
                           {summary.names}
                         </td>
@@ -323,6 +408,39 @@ export default function Reports() {
           </div>
         )}
 
+        
+        {reportType === 'statement' && (
+          <div className="space-y-6">
+            <div className="no-print mb-6">
+              <StatementFilters 
+                customers={customers.map(c => ({...c, type: 'CUSTOMER'}))}
+                suppliers={suppliers.map(s => ({...s, type: 'SUPPLIER'}))}
+                initialPartyId={statementCustomerId || undefined}
+                initialFrom={statementStartDate ? new Date(statementStartDate) : new Date()}
+                initialTo={statementEndDate ? new Date(statementEndDate) : new Date()}
+                onContinue={({ from, to, party }) => {
+                  // Keep timezone offset into account to avoid off-by-one day issues
+                  const fromDate = new Date(from.getTime() - (from.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                  const toDate = new Date(to.getTime() - (to.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                  setStatementStartDate(fromDate);
+                  setStatementEndDate(toDate);
+                  setStatementCustomerId(party?.id || '');
+                }}
+              />
+            </div>
+            
+            {statementData ? (
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+                <CustomerStatementPreview statement={statementData} company={companyData} />
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300">
+                <p className="text-slate-500 font-bold">الرجاء اختيار العميل لعرض كشف الحساب</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {reportType === 'customers' && (
           <div className="space-y-6">
              <table className="table-standard w-full">
@@ -351,7 +469,7 @@ export default function Reports() {
         )}
 
         {/* Footer for Print */}
-        <div className="mt-16 pt-8 border-t-2 border-brand-500 flex justify-between items-center text-slate-500 font-bold hidden print:flex">
+        <div className={`mt-16 pt-8 border-t-2 border-brand-500 justify-between items-center text-slate-500 font-bold hidden ${reportType === 'statement' ? '' : 'print:flex'}`}>
           <p>توقيع الإدارة: ________________</p>          <p>النظام مقدم من: معامل هاشم الأحمدي للتطريز الإلكتروني</p>
         </div>
       </div>

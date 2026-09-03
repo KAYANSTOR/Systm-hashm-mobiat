@@ -1,56 +1,27 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/pages/Reports.tsx', 'utf8');
+let code = fs.readFileSync('src/pages/Reports.tsx', 'utf8');
 
-// 1. Separate totals
-const totalsMatch = /const salesTotals = useMemo\(\(\) => \{[\s\S]*?\}, \[filteredSalesInvoices\]\);/m;
-const newTotals = `const salesTotals = useMemo(() => {
-    return filteredSalesInvoices.reduce((acc, inv) => {
-      acc.total += inv.total;
-      acc.paid += inv.paidAmount;
-      acc.remaining += inv.remainingAmount;
-      if (inv.invoiceType === 'SERVICE') {
-        acc.servicesTotal += inv.total;
-      } else {
-        acc.productsTotal += inv.total;
-      }
-      return acc;
-    }, { total: 0, paid: 0, remaining: 0, productsTotal: 0, servicesTotal: 0 });
-  }, [filteredSalesInvoices]);`;
-content = content.replace(totalsMatch, newTotals);
+const oldTr = `                      <tr key={inv.id} className="text-slate-800 hover:bg-slate-50/50">
+                        <td data-label="رقم الفاتورة" className="px-3 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
+                        <td data-label="التاريخ" className="px-3 py-3 text-slate-600 whitespace-nowrap">{formatDate(inv.date)}</td>
+                        <td data-label="العميل" className="px-3 py-3 font-bold">{customerName}</td>
+                        <td data-label="الأصناف" className="px-3 py-3 text-sm text-slate-600 max-w-xs truncate" title={summary.names !== '-' ? summary.names : ''}>`;
 
-// 2. Table Column
-const tableHeaderMatch = /<th className="px-3 py-3 font-bold">العميل<\/th>/;
-const newTableHeader = `<th className="px-3 py-3 font-bold">العميل</th>\n<th className="px-3 py-3 font-bold text-center">نوع العملية</th>`;
-content = content.replace(tableHeaderMatch, newTableHeader);
+const newTr = `                      <tr key={inv.id} className="text-slate-800 hover:bg-slate-50/50">
+                        <td data-label="رقم الفاتورة" className="px-3 py-3 font-mono font-bold text-slate-700">{inv.invoiceNumber}</td>
+                        <td data-label="التاريخ" className="px-3 py-3 text-slate-600 whitespace-nowrap">{formatDate(inv.date)}</td>
+                        <td data-label="العميل" className="px-3 py-3 font-bold">{customerName}</td>
+                        <td data-label="نوع العملية" className="px-3 py-3 text-center">
+                          <span className={\`text-xs px-2 py-1 rounded-full font-bold \${inv.invoiceType === 'PRODUCT' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}\`}>
+                            {inv.invoiceType === 'PRODUCT' ? 'بضاعة' : 'خدمة تطريز'}
+                          </span>
+                        </td>
+                        <td data-label="الأصناف" className="px-3 py-3 text-sm text-slate-600 max-w-xs truncate" title={summary.names !== '-' ? summary.names : ''}>`;
 
-// 3. Table Row
-const tableRowMatch = /<td data-label="العميل" className="px-3 py-3 font-bold text-slate-800">\s*\{partyName\}\s*<\/td>/;
-const newTableRow = `<td data-label="العميل" className="px-3 py-3 font-bold text-slate-800">
-                      {partyName}
-                    </td>
-                    <td data-label="نوع العملية" className="px-3 py-3 text-center">
-                      {inv.invoiceType === 'SERVICE' ? (
-                        <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs font-bold border border-purple-100">خدمة تطريز</span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">بيع بضاعة</span>
-                      )}
-                    </td>`;
-content = content.replace(tableRowMatch, newTableRow);
-
-// 4. Summary Cards
-const summaryCardsMatch = /<div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col print:border-slate-300">\s*<span className="text-slate-500 text-sm font-bold mb-1">إجمالي المبيعات<\/span>\s*<span className="text-2xl font-black text-slate-900" dir="ltr">\{formatCurrency\(salesTotals\.total\)\}<\/span>\s*<\/div>/;
-const newSummaryCards = `<div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col print:border-slate-300">
-                  <span className="text-slate-500 text-sm font-bold mb-1">إجمالي المبيعات (بضاعة)</span>
-                  <span className="text-2xl font-black text-slate-900" dir="ltr">{formatCurrency(salesTotals.productsTotal)}</span>
-                </div>
-                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex flex-col print:border-purple-300">
-                  <span className="text-purple-700 text-sm font-bold mb-1">إجمالي خدمات التطريز</span>
-                  <span className="text-2xl font-black text-purple-900" dir="ltr">{formatCurrency(salesTotals.servicesTotal)}</span>
-                </div>`;
-content = content.replace(summaryCardsMatch, newSummaryCards);
-
-// We need to change grid-cols-1 md:grid-cols-3 to grid-cols-2 md:grid-cols-4 for the new card
-content = content.replace(/grid-cols-1 md:grid-cols-3 gap-4 mt-6/, "grid-cols-2 md:grid-cols-4 gap-4 mt-6");
-
-fs.writeFileSync('src/pages/Reports.tsx', content, 'utf8');
-console.log("Reports patched.");
+if(code.includes(oldTr)) {
+  code = code.replace(oldTr, newTr);
+  fs.writeFileSync('src/pages/Reports.tsx', code);
+  console.log('patched Reports.tsx');
+} else {
+  console.log('could not find target in Reports.tsx');
+}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 150">
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#14b8a6" />
+    </linearGradient>
+  </defs>
+  
+  <g transform="translate(40, 25)">
+    <!-- Hexagon icon -->
+    <path d="M50 0 L93.3 25 L93.3 75 L50 100 L6.7 75 L6.7 25 Z" fill="url(#brandGrad)" />
+    <!-- Letter H inside -->
+    <path d="M40 30 L40 70 M60 30 L60 70 M40 50 L60 50" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  
+  <g transform="translate(160, 80)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-weight="900" font-size="48" fill="#0f766e">معمل هاشم</text>
+    <text x="0" y="30" font-family="Arial, sans-serif" font-weight="bold" font-size="20" fill="#64748b">للأسنان والتجميل</text>
+  </g>
+</svg>

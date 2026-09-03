@@ -9,6 +9,7 @@ import Parties from './pages/Parties';
 import Reports from './pages/Reports';
 import CashBox from './pages/CashBox';
 import Expenses from './pages/Expenses';
+import Settings from './pages/Settings';
 import { auth, signInWithGoogle, signOut } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
@@ -36,6 +37,7 @@ export default function App() {
       case 'reports': return <Reports />;
       case 'cashbox': return <CashBox />;
       case 'expenses': return <Expenses />;
+      case 'settings': return <Settings />;
       default: return <Dashboard setActiveTab={setActiveTab} />;
     }
   };

@@ -1,3 +1,4 @@
+import { CustomDatePicker, CustomPartyPicker } from '../components/StatementFilters';
 import React, { useState } from 'react';
 import { auth } from '../firebase';
 import { useStore } from '../context/StoreContext';
@@ -11,8 +12,8 @@ import SignaturePad from '../components/SignaturePad';
 export default function Vouchers() {
   const { vouchers, customers, suppliers, addVoucher, deleteVoucher } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
   const [activeFilter, setActiveFilter] = useState<'all' | 'receipt' | 'payment' | 'deferred' | 'journal'>('all');
 
   
@@ -46,7 +47,7 @@ export default function Vouchers() {
   const [partyType, setPartyType] = useState<'customer' | 'supplier' | 'other'>('customer');
   const [partyId, setPartyId] = useState('');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(new Date(new Date().getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'remittance' | 'jeeb' | 'e_wallet'>('cash');
   const [description, setDescription] = useState('');
   const [signature, setSignature] = useState<string | null>(null);
@@ -141,19 +142,9 @@ export default function Vouchers() {
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <label className="text-sm font-bold text-slate-600 shrink-0">من:</label>
-            <input 
-              type="date" 
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input-field !py-2"
-            />
+            <CustomDatePicker value={startDate} onChange={setStartDate} className="input-field flex justify-between items-center min-w-[150px]" />
             <label className="text-sm font-bold text-slate-600 shrink-0">إلى:</label>
-            <input 
-              type="date" 
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="input-field !py-2"
-            />
+            <CustomDatePicker value={endDate} onChange={setEndDate} className="input-field flex justify-between items-center min-w-[150px]" />
           </div>
         </div>
         <div className="table-container">
@@ -271,7 +262,7 @@ export default function Vouchers() {
                 </div>
                 <div>
                   <label className="label">التاريخ</label>
-                  <input required type="date" value={date} onChange={e => setDate(e.target.value)} className="input-field" />
+                  <CustomDatePicker value={date} onChange={setDate} className="input-field flex justify-between items-center" />
                 </div>
               </div>
 

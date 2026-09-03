@@ -1,4 +1,6 @@
 import React, { useRef } from 'react';
+import * as htmlToImage from 'html-to-image';
+import jsPDF from 'jspdf';
 import { Printer, Download, Share2, X, CheckCircle } from 'lucide-react';
 import { Invoice } from '../types';
 import { formatCurrency, formatDate } from '../lib/utils';
@@ -36,22 +38,90 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
 
   const fetchPdfBlob = async () => {
     if (!printRef.current) return null;
-    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(el => el.outerHTML)
-      .join('\n');
-    const html = printRef.current.outerHTML;
-    
-    const response = await fetch('/api/pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html, styles, orientation: 'portrait' })
-    });
-    
-    if (!response.ok) throw new Error('PDF Generation Failed');
-    return await response.blob();
+    try {
+      if (typeof setIsGenerating === 'function') setIsGenerating(true);
+      
+      const element = printRef.current;
+      
+      const filter = (node) => {
+        const exclusionClasses = ['no-print'];
+        return !exclusionClasses.some(classname => node.classList?.contains(classname));
+      };
+      
+      const dataUrl = await htmlToImage.toJpeg(element, { 
+        quality: 0.95, 
+        pixelRatio: 2, 
+        backgroundColor: '#ffffff',
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          width: element.scrollWidth + 'px',
+          height: element.scrollHeight + 'px'
+        },
+        filter: filter
+      });
+      
+      const pdfWidth = 210;
+      const imgProps = new jsPDF().getImageProperties(dataUrl);
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Dynamic page size to fit all content perfectly in one continuous page
+      const pdf = new jsPDF({ 
+        orientation: 'portrait', 
+        unit: 'mm', 
+        format: [pdfWidth, Math.max(297, pdfHeight + 10)] 
+      });
+      
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      return pdf.output('blob');
+    } catch (err) {
+      console.error(err);
+      return null;
+    } finally {
+      if (typeof setIsGenerating === 'function') setIsGenerating(false);
+    }
   };
 
-  const handlePrint = () => { window.print(); };
+  const generatePDF = async () => {
+     const blob = await fetchPdfBlob();
+     if (!blob) return null;
+     
+     // Compatibility layer for code that expects the JS PDF object with a .save method
+     return {
+       save: (name: string) => {
+         const url = URL.createObjectURL(blob);
+         const link = document.createElement('a');
+         link.href = url;
+         link.download = name;
+         link.click();
+         URL.revokeObjectURL(url);
+       },
+       output: (type?: string) => blob
+     };
+  };;
+
+  const handlePrint = async () => {
+    try {
+      setIsGenerating(true);
+      const blob = await fetchPdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (win) {
+         win.onload = () => { win.print(); };
+      } else {
+         alert('يرجى السماح بالنوافذ المنبثقة (Pop-ups) للطباعة، أو استخدم زر التنزيل');
+      }
+    } catch(e) {
+      console.error(e);
+      alert("حدث خطأ أثناء الطباعة");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleShareWhatsApp = async () => {
     try {
@@ -105,7 +175,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
           <div className="flex gap-2">
             {!invoice.isApproved && (
               <button onClick={async () => {
-                if(confirm('هل أنت متأكد من اعتماد هذه الفاتورة؟ سيتم ترحيلها إلى الحسابات والمخزن.')) {
+                if(confirm('هل أنت متأكد من اعتماد هذه الفاتورة؟ سيتم ترحيلها إلى الحسابات .')) {
                   await approveInvoice(invoice.id);
                   onClose();
                 }
@@ -166,18 +236,9 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
                 
                 {/* Logo */}
                 <div className="w-56 flex flex-col items-center shrink-0">
-                  <div className="relative w-full h-24 mb-1">
-                     <svg viewBox="0 0 200 100" className="w-full h-full fill-[#088c94]">
-                       {/* Stylized Hashim Calligraphy Approximation */}
-                       <path d="M160 30 C180 30, 190 50, 180 70 C170 90, 140 90, 140 70 C140 50, 150 50, 150 70 C150 80, 160 80, 165 70 C170 60, 160 45, 140 45 L100 45 C100 20, 120 20, 120 40 L90 40 L85 70 C85 85, 75 85, 75 70 L80 45 L50 45 L40 70 C35 85, 20 85, 20 70 C20 50, 40 40, 50 45 M135 15 A8 8 0 1 1 135 16 Z M95 15 A8 8 0 1 1 95 16 Z M80 15 A8 8 0 1 1 80 16 Z M65 15 A8 8 0 1 1 65 16 Z" stroke="#088c94" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                       <text x="100" y="70" fontFamily="Tajawal, sans-serif" fontWeight="900" fontSize="70" textAnchor="middle" letterSpacing="-4">هاشم</text>
-                     </svg>
-                  </div>
-                  <div className="bg-[#088c94] text-white px-3 py-1 rounded-md text-[16px] font-bold w-full text-center tracking-wide">
-                    للتطريز الإلكتروني
-                  </div>
-                </div>
-              </div>
+  <img src="/logo.svg" className="w-full h-auto object-contain max-h-32" alt="شعار الاحمدي هاشم" />
+</div>
+</div>
             </div>
 
             {/* Sub-header Bar (Date, Type, Number) */}

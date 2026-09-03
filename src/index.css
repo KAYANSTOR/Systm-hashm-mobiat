@@ -21,6 +21,7 @@
     position: fixed;
   }
   body {
+    accent-color: var(--color-brand-500);
     font-family: var(--font-cairo);
     @apply bg-[#f4f6f9] text-slate-900;
   }
@@ -43,6 +44,7 @@
 
   /* Custom styling for date inputs */
   input[type="date"] {
+    accent-color: var(--color-brand-500);
     @apply relative shadow-sm cursor-pointer transition-all;
   }
   
