@@ -361,8 +361,8 @@ export default function Reports() {
                         <td data-label="التاريخ" className="px-3 py-3 text-slate-600 whitespace-nowrap">{formatDate(inv.date)}</td>
                         <td data-label="العميل" className="px-3 py-3 font-bold">{customerName}</td>
                         <td data-label="نوع العملية" className="px-3 py-3 text-center">
-                          <span className={`text-xs px-2 py-1 rounded-full font-bold ${inv.invoiceType === 'PRODUCT' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                            {inv.invoiceType === 'PRODUCT' ? 'بضاعة' : 'خدمة تطريز'}
+                          <span className={`text-xs px-2 py-1 rounded-full font-bold ${inv.invoiceType === 'PRODUCT_SALE' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                            {inv.invoiceType === 'PRODUCT_SALE' ? 'بضاعة' : 'خدمة تطريز'}
                           </span>
                         </td>
                         <td data-label="الأصناف" className="px-3 py-3 text-sm text-slate-600 max-w-xs truncate" title={summary.names !== '-' ? summary.names : ''}>

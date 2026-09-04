@@ -141,7 +141,7 @@ export default function Inventory() {
                   <td data-label="الكمية" className="px-2 py-3 text-center">
                     <div className="flex items-center justify-end gap-2">
                       {(item.quantity <= (item.minQuantity || 0)) && (
-                         <AlertTriangle className="w-4 h-4 text-rose-500" title="تنبيه: الكمية وصلت للحد الأدنى" />
+                         <AlertTriangle className="w-4 h-4 text-rose-500" aria-label="تنبيه: الكمية وصلت للحد الأدنى" />
                       )}
                       <span className={`font-bold text-lg ${item.quantity <= (item.minQuantity || 0) ? 'text-rose-600' : 'text-slate-800'}`}>{item.quantity}</span>
                       <span className="text-xs text-slate-500 mr-1">

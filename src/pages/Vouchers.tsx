@@ -238,7 +238,7 @@ export default function Vouchers() {
             remaining: "",
             receiver: "",
             cashier: "",
-            type: printingVoucher.voucher.type,
+            type: printingVoucher.voucher.type === "journal" ? "payment" : printingVoucher.voucher.type,
             signature: printingVoucher.voucher.signature
           }}
           onClose={() => setPrintingVoucher(null)} 

@@ -145,7 +145,7 @@ export default function Sales() {
       paidAmount: actualPaidAmount,
       paymentType,
       remainingAmount: remaining,
-      status,
+      status: status as Invoice["status"],
       isApproved,
       notes
     };
