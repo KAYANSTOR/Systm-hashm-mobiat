@@ -2,15 +2,36 @@
 
 @theme {
   --font-cairo: "Cairo", sans-serif;
-  
+
+  /* Brand (teal) full scale */
   --color-brand-50: #f0f9f9;
   --color-brand-100: #ccf0ef;
+  --color-brand-200: #99e1df;
+  --color-brand-300: #66d2cf;
+  --color-brand-400: #40b8b4;
   --color-brand-500: #208480;
   --color-brand-600: #1a6b68;
   --color-brand-700: #135552;
-  
+  --color-brand-800: #0d3f3d;
+  --color-brand-900: #082a28;
+
+  /* Accent */
+  --color-accent-50: #fdf2f7;
+  --color-accent-100: #fce7f0;
   --color-accent-500: #bd5e8e;
   --color-accent-600: #a64e7a;
+  --color-accent-700: #8a3f64;
+
+  /* Semantic */
+  --color-success-50: #ecfdf5;
+  --color-success-500: #10b981;
+  --color-success-700: #047857;
+  --color-danger-50: #fff1f2;
+  --color-danger-500: #f43f5e;
+  --color-danger-700: #be123c;
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+  --color-warning-700: #b45309;
 }
 
 @layer base {

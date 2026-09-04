@@ -122,6 +122,30 @@ export interface Expense {
   createdAt: any;
 }
 
+export interface CompanySettings {
+  shortName: string;       // الاحمدي
+  fullName: string;        // معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني
+  address: string;         // صنعاء - شارع الزبيري - مقابل وزارة الدفاع
+  phone1: string;
+  phone2: string;
+  logoUrl: string;         // /logo.svg or remote URL
+  footerNote?: string;
+  taxNumber?: string;
+  currency?: string;       // ريال يمني
+}
+
+export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
+  shortName: 'الاحمدي',
+  fullName: 'معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني',
+  address: 'صنعاء - شارع الزبيري - مقابل وزارة الدفاع',
+  phone1: '770 447 441',
+  phone2: '730 447 441',
+  logoUrl: '/logo.svg',
+  footerNote: '',
+  taxNumber: '',
+  currency: 'ريال يمني',
+};
+
 export interface StoreState {
   customers: Customer[];
   suppliers: Supplier[];
@@ -130,4 +154,5 @@ export interface StoreState {
   vouchers: Voucher[];
   transactions: Transaction[];
   expenses: Expense[];
+  companySettings: CompanySettings;
 }

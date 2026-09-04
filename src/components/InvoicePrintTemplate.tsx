@@ -16,7 +16,7 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
   const [isGenerating, setIsGenerating] = React.useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   
-  const { customers, suppliers, approveInvoice } = useStore();
+  const { customers, suppliers, approveInvoice, companySettings } = useStore();
   
   const party = invoice.type === 'sale' 
     ? customers.find(c => c.id === invoice.partyId) 
@@ -227,18 +227,20 @@ export default function InvoicePrintTemplate({ invoice, partyName, onClose }: In
               <div className="flex justify-between items-start">
                 <div className="text-right flex-1 pt-2">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-black text-2xl text-[#088c94]">الاحمدي</span>
-                    <h1 className="font-black text-3xl text-black tracking-tight">معامل هاشم الاحمدي للتصميم والتطريز الالكتروني</h1>
+                    <span className="font-black text-2xl text-[#088c94]">{companySettings.shortName}</span>
+                    <h1 className="font-black text-3xl text-black tracking-tight">{companySettings.fullName}</h1>
                   </div>
-                  <h2 className="font-bold text-2xl text-black mb-1 text-center pr-12">صنعاء - شارع الزبيري - مقابل وزارة الدفاع</h2>
-                  <h3 className="font-extrabold text-2xl text-black tracking-widest text-center pr-12 mt-2" dir="ltr">770 447 441 - 730 447 441</h3>
+                  <h2 className="font-bold text-2xl text-black mb-1 text-center pr-12">{companySettings.address}</h2>
+                  <h3 className="font-extrabold text-2xl text-black tracking-widest text-center pr-12 mt-2" dir="ltr">
+                    {[companySettings.phone1, companySettings.phone2].filter(Boolean).join(' - ')}
+                  </h3>
                 </div>
                 
                 {/* Logo */}
                 <div className="w-56 flex flex-col items-center shrink-0">
-  <img src="/logo.svg" className="w-full h-auto object-contain max-h-32" alt="شعار الاحمدي هاشم" />
-</div>
-</div>
+                  <img src={companySettings.logoUrl || '/logo.svg'} className="w-full h-auto object-contain max-h-32" alt={companySettings.shortName} />
+                </div>
+              </div>
             </div>
 
             {/* Sub-header Bar (Date, Type, Number) */}

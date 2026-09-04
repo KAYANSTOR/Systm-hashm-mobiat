@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import React, { useRef } from "react";
 import "./ReceiptPrint.css";
 import { Share2, Printer, X, Download } from 'lucide-react';
+import { useStore } from '../context/StoreContext';
 
 export interface ReceiptData {
   receiptNumber: string;
@@ -27,7 +28,7 @@ interface ReceiptPrintProps {
 }
 
 export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
-  
+  const { companySettings } = useStore();
   const [isGenerating, setIsGenerating] = React.useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -199,20 +200,20 @@ export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
 
                 <div className="receipt-company">
                   <div className="receipt-company-name">
-                    معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني
+                    {companySettings.fullName}
                   </div>
 
                   <div className="receipt-company-address">
-                    صنعاء - شارع الزبيري - مقابل وزارة الدفاع
+                    {companySettings.address}
                   </div>
 
                   <div className="receipt-company-phone" dir="ltr">
-                    770 447 441 - 730 447 441
+                    {[companySettings.phone1, companySettings.phone2].filter(Boolean).join(' - ')}
                   </div>
                 </div>
 
                 <div className="receipt-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                  <img src="/logo.svg" style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: '45px' }} alt="شعار الاحمدي هاشم" />
+                  <img src={companySettings.logoUrl || '/logo.svg'} style={{ width: '100%', height: 'auto', objectFit: 'contain', maxHeight: '45px' }} alt={companySettings.shortName} />
                 </div>
               </header>
 

@@ -10,7 +10,7 @@ import * as htmlToImage from 'html-to-image';
 import jsPDF from 'jspdf';
 
 export default function Reports() {
-  const { invoices, customers, suppliers, transactions } = useStore();
+  const { invoices, customers, suppliers, transactions, companySettings } = useStore();
   const [reportType, setReportType] = useState<'sales' | 'customers' | 'statement'>('sales');
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -84,11 +84,11 @@ export default function Reports() {
   }, [statementCustomerId, statementStartDate, statementEndDate, transactions, customers]);
 
   const companyData: StatementCompany = {
-    name: 'معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني',
-    location: 'صنعاء - شارع الزبيري - مقابل وزارة الدفاع',
-    phone1: '770 447 441',
-    phone2: '730 447 441',
-    logoSrc: '/logo.svg'
+    name: companySettings.fullName,
+    location: companySettings.address,
+    phone1: companySettings.phone1,
+    phone2: companySettings.phone2,
+    logoSrc: companySettings.logoUrl || '/logo.svg'
   };
 
 
@@ -125,7 +125,7 @@ export default function Reports() {
         try {
            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
            await navigator.share({
-             title: 'تقرير معامل هاشم الأحمدي',
+             title: `تقرير ${companySettings.shortName}`,
              text: `تقرير ${reportType === 'sales' ? 'المبيعات' : 'العملاء'}`,
              files: [file],
            });
@@ -309,19 +309,21 @@ export default function Reports() {
         {/* Report Header for Print */}
         <div className="hidden print:flex justify-between items-center mb-8 border-b-2 border-brand-500 pb-4">
           <div className="flex-1 text-right">
-            <h1 className="font-extrabold text-2xl text-slate-900 mb-1 font-tajawal">معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني</h1>
-            <h2 className="font-bold text-lg text-slate-700 mb-2 font-tajawal">صنعاء - شارع الزبيري - مقابل وزارة الدفاع</h2>
-            <p className="font-bold text-lg font-sans" dir="ltr">770 447 441 - 730 447 441</p>
+            <h1 className="font-extrabold text-2xl text-slate-900 mb-1 font-tajawal">{companySettings.fullName}</h1>
+            <h2 className="font-bold text-lg text-slate-700 mb-2 font-tajawal">{companySettings.address}</h2>
+            <p className="font-bold text-lg font-sans" dir="ltr">
+              {[companySettings.phone1, companySettings.phone2].filter(Boolean).join(' - ')}
+            </p>
           </div>
           <div className="w-48 ml-4 shrink-0 flex justify-end">
-            <img src="/logo.svg" className="max-h-24 object-contain" alt="شعار الاحمدي هاشم" />
+            <img src={companySettings.logoUrl || '/logo.svg'} className="max-h-24 object-contain" alt={companySettings.shortName} />
           </div>
         </div>
 
         <div className={`mb-8 flex justify-between items-end print:mt-4 ${reportType === 'statement' ? 'print:hidden' : ''}`}>
           <div className="print:hidden">
-            <h1 className="text-3xl font-black text-slate-900 mb-2">معامل هاشم الأحمدي</h1>
-            <p className="text-slate-600 font-medium">للتطريز الإلكتروني</p>
+            <h1 className="text-3xl font-black text-slate-900 mb-2">{companySettings.shortName}</h1>
+            <p className="text-slate-600 font-medium">{companySettings.fullName}</p>
           </div>
           <div className="text-left print:text-right print:w-full print:flex print:justify-between print:items-center">
             <h2 className="text-2xl font-bold text-brand-500 mb-2 print:mb-0 font-tajawal">
@@ -470,7 +472,8 @@ export default function Reports() {
 
         {/* Footer for Print */}
         <div className={`mt-16 pt-8 border-t-2 border-brand-500 justify-between items-center text-slate-500 font-bold hidden ${reportType === 'statement' ? '' : 'print:flex'}`}>
-          <p>توقيع الإدارة: ________________</p>          <p>النظام مقدم من: معامل هاشم الأحمدي للتطريز الإلكتروني</p>
+          <p>توقيع الإدارة: ________________</p>
+          <p>النظام مقدم من: {companySettings.fullName}</p>
         </div>
       </div>
     </div>

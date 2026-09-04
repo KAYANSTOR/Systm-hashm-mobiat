@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Customer, InventoryItem, Invoice, Supplier, Voucher, Transaction, Expense } from '../types';
-import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, increment, writeBatch, getDoc, getDocs, where } from 'firebase/firestore';
+import { Customer, InventoryItem, Invoice, Supplier, Voucher, Transaction, Expense, CompanySettings, DEFAULT_COMPANY_SETTINGS } from '../types';
+import { collection, onSnapshot, query, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy, increment, writeBatch, getDoc, getDocs, where, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 
 interface StoreContextType {
@@ -11,6 +11,7 @@ interface StoreContextType {
   vouchers: Voucher[];
   transactions: Transaction[];
   expenses: Expense[];
+  companySettings: CompanySettings;
   
   addCustomer: (c: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string | void>;
   updateCustomer: (id: string, data: Partial<Customer>) => Promise<string | void>;
@@ -35,6 +36,8 @@ interface StoreContextType {
   
   addExpense: (e: Omit<Expense, 'id' | 'createdAt'>) => Promise<string | void>;
   deleteExpense: (id: string) => Promise<string | void>;
+
+  updateCompanySettings: (data: Partial<CompanySettings>) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -47,6 +50,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS);
 
   useEffect(() => {
     const unsubCustomers = onSnapshot(query(collection(db, 'customers'), orderBy('createdAt', 'desc')), (snap) => {
@@ -77,8 +81,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setExpenses(snap.docs.map(d => ({ id: d.id, ...d.data() } as Expense)));
     }, (error) => handleFirestoreError(error, OperationType.GET, 'expenses'));
 
+    // إعدادات الشركة (مستند واحد)
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'company'), (snap) => {
+      if (snap.exists()) {
+        setCompanySettings({ ...DEFAULT_COMPANY_SETTINGS, ...snap.data() } as CompanySettings);
+      } else {
+        setCompanySettings(DEFAULT_COMPANY_SETTINGS);
+      }
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'settings'));
+
     return () => {
-      unsubCustomers(); unsubSuppliers(); unsubInventory(); unsubInvoices(); unsubVouchers(); unsubTransactions(); unsubExpenses();
+      unsubCustomers(); unsubSuppliers(); unsubInventory(); unsubInvoices(); unsubVouchers(); unsubTransactions(); unsubExpenses(); unsubSettings();
     };
   }, []);
 
@@ -477,16 +490,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (err) { handleFirestoreError(err, OperationType.DELETE, 'expenses'); throw err; }
   };
 
+  const updateCompanySettings = async (data: Partial<CompanySettings>) => {
+    try {
+      const ref = doc(db, 'settings', 'company');
+      await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, 'settings');
+      throw e;
+    }
+  };
 
   return (
     <StoreContext.Provider value={{
       customers, suppliers, inventory, invoices, vouchers, transactions, expenses,
+      companySettings,
       addCustomer, updateCustomer, deleteCustomer,
       addSupplier, updateSupplier, deleteSupplier,
       addInventoryItem, updateInventoryItem, deleteInventoryItem,
       addInvoice, updateInvoice, deleteInvoice, approveInvoice,
       addVoucher, updateVoucher, deleteVoucher,
-      addExpense, deleteExpense
+      addExpense, deleteExpense,
+      updateCompanySettings
     }}>
       {children}
     </StoreContext.Provider>

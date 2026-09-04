@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { Voucher } from '../types';
 import { Share2, Printer, X, Download, Scissors } from 'lucide-react';
+import { useStore } from '../context/StoreContext';
 
 interface VoucherPrintTemplateProps {
   voucher: Voucher;
@@ -12,7 +13,7 @@ interface VoucherPrintTemplateProps {
 }
 
 export default function VoucherPrintTemplate({ voucher, partyName, onClose }: VoucherPrintTemplateProps) {
-  
+  const { companySettings } = useStore();
   const [isGenerating, setIsGenerating] = React.useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -182,12 +183,14 @@ export default function VoucherPrintTemplate({ voucher, partyName, onClose }: Vo
               {/* Header */}
               <div className="flex justify-between items-center mb-6">
                 <div className="flex-1 text-right">
-                  <h1 className="font-extrabold text-2xl text-slate-900 mb-1">معامل هاشم الأحمدي للتصميم والتطريز الإلكتروني</h1>
-                  <h2 className="font-bold text-lg text-slate-700 mb-2">صنعاء - شارع الزبيري - مقابل وزارة الدفاع</h2>
-                  <p className="font-bold text-lg" dir="ltr">770 447 441 - 730 447 441</p>
+                  <h1 className="font-extrabold text-2xl text-slate-900 mb-1">{companySettings.fullName}</h1>
+                  <h2 className="font-bold text-lg text-slate-700 mb-2">{companySettings.address}</h2>
+                  <p className="font-bold text-lg" dir="ltr">
+                    {[companySettings.phone1, companySettings.phone2].filter(Boolean).join(' - ')}
+                  </p>
                 </div>
                 <div className="w-48 ml-4 shrink-0 flex flex-col items-center justify-center">
-                   <img src="/logo.svg" className="w-full h-auto object-contain max-h-24" alt="شعار الاحمدي هاشم" />
+                   <img src={companySettings.logoUrl || '/logo.svg'} className="w-full h-auto object-contain max-h-24" alt={companySettings.shortName} />
                 </div>
               </div>
 
